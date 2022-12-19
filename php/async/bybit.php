@@ -2128,6 +2128,12 @@ class bybit extends Exchange {
         }
         $marketId = $this->safe_string($trade, 'symbol');
         $market = $this->safe_market($marketId, $market);
+
+        $amountString = $this->safe_string($trade,'execQty');
+        if ($amountString === null) {
+          $amountString = $this->safe_string($trade, 'orderQty');
+        }
+
         $fee = array();
         $feeToken = $this->safe_string($trade, 'feeTokenId');
         if ($feeToken !== null) {
@@ -2689,6 +2695,7 @@ class bybit extends Exchange {
             'CANCELED' => 'canceled',
             'PENDINGCANCEL' => 'canceling',
             'PENDING_CANCEL' => 'canceling',
+            'PARTIALLY_FILLED_CANCELED' => 'closed', // xyvran patch
             // conditional orders
             'Active' => 'open', // order is triggered and placed successfully
             'Untriggered' => 'open', // order waits to be triggered
@@ -2998,11 +3005,11 @@ class bybit extends Exchange {
         $triggerPrice = $this->safe_string($order, 'triggerPrice');
         $postOnly = ($timeInForce === 'PO');
         $amount = $this->safe_string($order, 'orderQty');
-        if ($amount === null || $amount === '0') {
+//        if ($amount === null || $amount === '0') {
             if ($market['spot'] && $type === 'market' && $side === 'buy') {
                 $amount = $filled;
             }
-        }
+//        }
         return $this->safe_order(array(
             'id' => $this->safe_string($order, 'orderId'),
             'clientOrderId' => $this->safe_string($order, 'orderLinkId'),
@@ -4418,7 +4425,17 @@ class bybit extends Exchange {
             //
             $result = $this->safe_value($response, 'result', array());
             if (gettype($result) !== 'array' || array_keys($result) !== array_keys(array_keys($result))) {
-                $result = $this->safe_value_n($result, array( 'trade_list', 'data', 'list' ), array());
+//              print_r($result);
+//              $result = $this->safe_value_n($result, array( 'trade_list', 'data', 'list' ), array());
+              $result = static::get_object_value_from_key_array($result, array( 'trade_list', 'data', 'list' ));
+
+//              print_r($result);
+//          var_dump($result);
+//          var_dump(gettype($result) !== 'array');
+//          var_dump(array_keys($result));
+//            var_dump(array_keys(array_keys($result)));
+//              exit;
+//              $result = $this->safe_value_n($result, array( 'trade_list', 'data', 'list' ), array());
             }
             return $this->parse_trades($result, $market, $since, $limit);
         }) ();

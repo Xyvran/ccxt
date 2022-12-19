@@ -2646,6 +2646,7 @@ class bybit extends Exchange {
             'CANCELED' => 'canceled',
             'PENDINGCANCEL' => 'canceling',
             'PENDING_CANCEL' => 'canceling',
+            'PARTIALLY_FILLED_CANCELED' => 'closed', // xyvran patch
             // conditional orders
             'Active' => 'open', // order is triggered and placed successfully
             'Untriggered' => 'open', // order waits to be triggered

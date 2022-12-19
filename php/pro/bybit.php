@@ -1543,6 +1543,7 @@ class bybit extends \ccxt\async\bybit {
         //
         $id = $this->safe_string($order, 'i');
         $marketId = $this->safe_string($order, 's');
+        $clientOrderId = $this->safe_string($order, 'c');
         $symbol = $this->safe_symbol($marketId, $market);
         $timestamp = $this->safe_integer($order, 'O');
         $price = $this->safe_string($order, 'p');
@@ -1556,9 +1557,20 @@ class bybit extends \ccxt\async\bybit {
         $lastTradeTimestamp = $this->safe_string($order, 'E');
         $timeInForce = $this->safe_string($order, 'f');
         $type = $this->safe_string_lower($order, 'o');
+        // xyvran patch
+        if ($type === 'MARKET_OF_QUOTE') {
+            $type = 'market';
+            // q = quote $amount
+            // Z = quote $filled
+            // L = quote $price
+            if ($filled > 0) {
+                $amount = $filled; // or NULL!?
+            }
+        }
         if (mb_strpos($type, 'market') !== false) {
             $type = 'market';
         }
+        $average = $this->safe_string($order, 'L');
         $fee = null;
         $feeCost = $this->safe_string($order, 'n');
         if ($feeCost !== null && $feeCost !== '0') {
@@ -1572,7 +1584,7 @@ class bybit extends \ccxt\async\bybit {
         return $this->safe_order(array(
             'info' => $order,
             'id' => $id,
-            'clientOrderId' => null,
+            'clientOrderId' => $clientOrderId,
             'timestamp' => $timestamp,
             'datetime' => $this->iso8601($timestamp),
             'lastTradeTimestamp' => $lastTradeTimestamp,
@@ -1585,7 +1597,7 @@ class bybit extends \ccxt\async\bybit {
             'stopPrice' => null,
             'amount' => $amount,
             'cost' => null,
-            'average' => null,
+            'average' => $average,
             'filled' => $filled,
             'remaining' => null,
             'status' => $status,
