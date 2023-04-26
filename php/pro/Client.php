@@ -132,7 +132,18 @@ class Client {
         }
 
         $this->connected = new Future();
-        $connector = new React\Socket\Connector();
+        if (array_key_exists('curl_options', $config) && isset($config['curl_options']) // Patched by xyvran
+          && is_array($config['curl_options']) && isset($config['curl_options'][CURLOPT_PROXY]) // Patched by xyvran
+          && isset($config['curl_options'][CURLOPT_PROXYTYPE]) && $config['curl_options'][CURLOPT_PROXYTYPE] == CURLPROXY_SOCKS5) { // Patched by xyvran
+          $proxy = new \Clue\React\Socks\Client($config['curl_options'][CURLOPT_PROXY]); // Patched by xyvran
+        } else { // Patched by xyvran
+          $proxy = null; // Patched by xyvran
+        } // Patched by xyvran
+        $connector = new React\Socket\Connector(null, array(
+          'tcp' => $proxy, // Patched by xyvran
+        ));
+//        $connector = new React\Socket\Connector(); // Patched by xyvran
+
         if ($this->noOriginHeader) {
             $this->connector = new NoOriginHeaderConnector(Loop::get(), $connector);
         } else {

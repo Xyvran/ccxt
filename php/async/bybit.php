@@ -3138,7 +3138,8 @@ class bybit extends Exchange {
             'PENDING_CANCEL' => 'open',
             'PENDING_NEW' => 'open',
             'REJECTED' => 'rejected',
-            'PARTIALLY_FILLED_CANCELLED' => 'canceled',
+//            'PARTIALLY_FILLED_CANCELLED' => 'canceled', // Fix: xyvran
+            'PARTIALLY_FILLED_CANCELED' => 'closed', // Fix: xyvran
             // v3 contract / unified margin / unified account
             'Created' => 'open',
             'New' => 'open',

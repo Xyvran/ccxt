@@ -57,8 +57,16 @@ class Exchange extends \ccxt\Exchange {
 
     public function __construct($options = array()) {
         parent::__construct($options);
+        if (array_key_exists('curl_options', $options) && isset($options['curl_options']) // Patched by xyvran
+          && is_array($options['curl_options']) && isset($options['curl_options'][CURLOPT_PROXY]) // Patched by xyvran
+          && isset($options['curl_options'][CURLOPT_PROXYTYPE]) && $options['curl_options'][CURLOPT_PROXYTYPE] == CURLPROXY_SOCKS5) { // Patched by xyvran
+          $proxy = new \Clue\React\Socks\Client($options['curl_options'][CURLOPT_PROXY]); // Patched by xyvran
+        } else { // Patched by xyvran
+          $proxy = null; // Patched by xyvran
+        } // Patched by xyvran
         $connector = new React\Socket\Connector(Loop::get(), array(
-            'timeout' => $this->timeout,
+          'timeout' => $this->timeout,
+          'tcp' => $proxy, // Patched by xyvran
         ));
         if ($this->browser === null) {
             $this->browser = (new React\Http\Browser(Loop::get(), $connector))->withRejectErrorResponse(false);
