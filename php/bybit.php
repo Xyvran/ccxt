@@ -3335,9 +3335,17 @@ class bybit extends Exchange {
         }
         if ($type === 'spot') {
             // only spot markets have a dedicated endpoint for fetching a order
-            $request = array(
+            $clientOrderId = $this->safe_value_2($params, 'origClientOrderId', 'clientOrderId'); // patched xyvran
+            if ($clientOrderId !== null) {
+              $request = array(
+                'orderLinkId' => $clientOrderId,
+              );
+            } else {
+              $request = array(
                 'orderId' => $id,
-            );
+              );
+            } // patched xyvran
+
             $response = $this->privateGetSpotV3PrivateOrder (array_merge($params, $request));
             //
             //    {
