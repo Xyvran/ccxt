@@ -410,7 +410,47 @@ class probit extends Exchange {
             $name = $this->safe_string($displayName, 'en-us');
             $platforms = $this->safe_value($currency, 'platform', array());
             $platformsByPriority = $this->sort_by($platforms, 'priority');
-            $platform = $this->safe_value($platformsByPriority, 0, array());
+            $platform = null;
+            $networkList = array();
+            for ($j = 0; $j < count($platformsByPriority); $j++) {
+                $network = $platformsByPriority[$j];
+                $id = $this->safe_string($network, 'id');
+                $networkCode = $this->network_id_to_code($id);
+                $currentDepositSuspended = $this->safe_value($network, 'deposit_suspended');
+                $currentWithdrawalSuspended = $this->safe_value($network, 'withdrawal_suspended');
+                $currentDeposit = !$currentDepositSuspended;
+                $currentWithdraw = !$currentWithdrawalSuspended;
+                $currentActive = $currentDeposit && $currentWithdraw;
+                if ($currentActive) {
+                    $platform = $network;
+                }
+                $precision = $this->safe_string($network, 'precision');
+                $withdrawFee = $this->safe_value($network, 'withdrawal_fee', array());
+                $fee = $this->safe_value($withdrawFee, 0, array());
+                $networkList[$networkCode] = array(
+                    'id' => $id,
+                    'network' => $networkCode,
+                    'active' => $currentActive,
+                    'deposit' => $currentDeposit,
+                    'withdraw' => $currentWithdraw,
+                    'fee' => $this->safe_number($fee, 'amount'),
+                    'precision' => $this->parse_number($precision),
+                    'limits' => array(
+                        'withdraw' => array(
+                            'min' => $this->safe_number($network, 'min_withdrawal_amount'),
+                            'max' => null,
+                        ),
+                        'deposit' => array(
+                            'min' => $this->safe_number($network, 'min_deposit_amount'),
+                            'max' => null,
+                        ),
+                    ),
+                    'info' => $network,
+                );
+            }
+            if ($platform === null) {
+                $platform = $this->safe_value($platformsByPriority, 0, array());
+            }
             $depositSuspended = $this->safe_value($platform, 'deposit_suspended');
             $withdrawalSuspended = $this->safe_value($platform, 'withdrawal_suspended');
             $deposit = !$depositSuspended;
@@ -421,11 +461,11 @@ class probit extends Exchange {
             // sometimes the withdrawal $fee is an empty object
             // array( array( 'amount' => '0.015', 'priority' => 1, 'currency_id' => 'ETH' ), array() )
             for ($j = 0; $j < count($withdrawalFees); $j++) {
-                $withdrawalFee = $withdrawalFees[$j];
-                $amount = $this->safe_number($withdrawalFee, 'amount');
-                $priority = $this->safe_integer($withdrawalFee, 'priority');
+                $withdrawalFeeInner = $withdrawalFees[$j];
+                $amount = $this->safe_number($withdrawalFeeInner, 'amount');
+                $priority = $this->safe_integer($withdrawalFeeInner, 'priority');
                 if (($amount !== null) && ($priority !== null)) {
-                    $fees[] = $withdrawalFee;
+                    $fees[] = $withdrawalFeeInner;
                 }
             }
             $withdrawalFeesByPriority = $this->sort_by($fees, 'priority');
@@ -455,6 +495,7 @@ class probit extends Exchange {
                         'max' => null,
                     ),
                 ),
+                'networks' => $networkList,
             );
         }
         return $result;
@@ -1622,7 +1663,7 @@ class probit extends Exchange {
 
     public function handle_errors($code, $reason, $url, $method, $headers, $body, $response, $requestHeaders, $requestBody) {
         if ($response === null) {
-            return; // fallback to default error handler
+            return null; // fallback to default error handler
         }
         if (is_array($response) && array_key_exists('errorCode', $response)) {
             $errorCode = $this->safe_string($response, 'errorCode');
@@ -1634,5 +1675,6 @@ class probit extends Exchange {
                 throw new ExchangeError($feedback);
             }
         }
+        return null;
     }
 }

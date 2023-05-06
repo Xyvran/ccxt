@@ -4,6 +4,7 @@
 # https://github.com/ccxt/ccxt/blob/master/CONTRIBUTING.md#how-to-contribute-code
 
 from ccxt.async_support.base.exchange import Exchange
+from ccxt.abstract.bybit import ImplicitAPI
 import asyncio
 import hashlib
 from ccxt.base.types import OrderSide
@@ -25,7 +26,7 @@ from ccxt.base.decimal_to_precision import TICK_SIZE
 from ccxt.base.precise import Precise
 
 
-class bybit(Exchange):
+class bybit(Exchange, ImplicitAPI):
 
     def describe(self):
         return self.deep_extend(super(bybit, self).describe(), {
@@ -1465,14 +1466,14 @@ class bybit(Exchange):
         if paginationCursor is not None:
             while(paginationCursor is not None):
                 params['cursor'] = paginationCursor
-                response = await self.publicGetDerivativesV3PublicInstrumentsInfo(params)
-                data = self.safe_value(response, 'result', {})
-                rawMarkets = self.safe_value(data, 'list', [])
+                responseInner = await self.publicGetDerivativesV3PublicInstrumentsInfo(params)
+                dataNew = self.safe_value(responseInner, 'result', {})
+                rawMarkets = self.safe_value(dataNew, 'list', [])
                 rawMarketsLength = len(rawMarkets)
                 if rawMarketsLength == 0:
                     break
                 markets = self.array_concat(rawMarkets, markets)
-                paginationCursor = self.safe_string(data, 'nextPageCursor')
+                paginationCursor = self.safe_string(dataNew, 'nextPageCursor')
         #
         # linear response
         #
@@ -7854,7 +7855,7 @@ class bybit(Exchange):
 
     def handle_errors(self, httpCode, reason, url, method, headers, body, response, requestHeaders, requestBody):
         if not response:
-            return  # fallback to default error handler
+            return None  # fallback to default error handler
         #
         #     {
         #         ret_code: 10001,
@@ -7890,3 +7891,4 @@ class bybit(Exchange):
             self.throw_broadly_matched_exception(self.exceptions['broad'], body, feedback)
             self.throw_exactly_matched_exception(self.exceptions['exact'], errorCode, feedback)
             raise ExchangeError(feedback)  # unknown message
+        return None

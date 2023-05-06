@@ -679,6 +679,7 @@ class poloniex extends Exchange {
                 'withdraw' => null,
                 'fee' => $fee,
                 'precision' => null,
+                'networks' => array(),
                 'limits' => array(
                     'amount' => array(
                         'min' => null,
@@ -2084,7 +2085,7 @@ class poloniex extends Exchange {
 
     public function handle_errors($code, $reason, $url, $method, $headers, $body, $response, $requestHeaders, $requestBody) {
         if ($response === null) {
-            return;
+            return null;
         }
         //
         //     {
@@ -2093,12 +2094,13 @@ class poloniex extends Exchange {
         //     }
         //
         if (is_array($response) && array_key_exists('code', $response)) {
-            $code = $response['code'];
+            $codeInner = $response['code'];
             $message = $this->safe_string($response, 'message');
             $feedback = $this->id . ' ' . $body;
-            $this->throw_exactly_matched_exception($this->exceptions['exact'], $code, $feedback);
+            $this->throw_exactly_matched_exception($this->exceptions['exact'], $codeInner, $feedback);
             $this->throw_broadly_matched_exception($this->exceptions['broad'], $message, $feedback);
             throw new ExchangeError($feedback); // unknown $message
         }
+        return null;
     }
 }

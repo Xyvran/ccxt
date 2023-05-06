@@ -23,6 +23,7 @@ export default class xt extends Exchange {
             // futures 1000 times per minute for each single IP -> Otherwise account locked for 10min
             'rateLimit': 100,
             'version': 'v4',
+            'certified': true,
             'pro': false,
             'has': {
                 'CORS': false,
@@ -483,6 +484,8 @@ export default class xt extends Exchange {
             },
             'commonCurrencies': {},
             'options': {
+                'adjustForTimeDifference': false,
+                'timeDifference': 0,
                 'networks': {
                     'ERC20': 'Ethereum',
                     'TRC20': 'Tron',
@@ -608,7 +611,7 @@ export default class xt extends Exchange {
         });
     }
     nonce() {
-        return this.milliseconds();
+        return this.milliseconds() - this.options['timeDifference'];
     }
     async fetchTime(params = {}) {
         /**
@@ -743,6 +746,9 @@ export default class xt extends Exchange {
          * @param {object} params extra parameters specific to the xt api endpoint
          * @returns {[object]} an array of objects representing market data
          */
+        if (this.options['adjustForTimeDifference']) {
+            await this.loadTimeDifference();
+        }
         const promisesUnresolved = [
             this.fetchSpotMarkets(params),
             this.fetchSwapAndFutureMarkets(params),
@@ -1041,7 +1047,13 @@ export default class xt extends Exchange {
             contract = true;
             spot = false;
         }
-        const isActive = (state === 'ONLINE') || (state === '0');
+        let isActive = true;
+        if (contract) {
+            isActive = this.safeValue(market, 'isOpenApi', false);
+        }
+        else {
+            isActive = (state === 'ONLINE') || (state === '0');
+        }
         return {
             'id': id,
             'symbol': symbol,
@@ -2207,13 +2219,13 @@ export default class xt extends Exchange {
         const stop = this.safeValue(params, 'stop');
         const stopLossTakeProfit = this.safeValue(params, 'stopLossTakeProfit');
         if (stop) {
-            request['entrustId'] = this.convertToBigInt(id);
+            request['entrustId'] = id;
         }
         else if (stopLossTakeProfit) {
-            request['profitId'] = this.convertToBigInt(id);
+            request['profitId'] = id;
         }
         else {
-            request['orderId'] = this.convertToBigInt(id);
+            request['orderId'] = id;
         }
         if (stop) {
             params = this.omit(params, 'stop');
@@ -2896,13 +2908,13 @@ export default class xt extends Exchange {
         const stop = this.safeValue(params, 'stop');
         const stopLossTakeProfit = this.safeValue(params, 'stopLossTakeProfit');
         if (stop) {
-            request['entrustId'] = this.convertToBigInt(id);
+            request['entrustId'] = id;
         }
         else if (stopLossTakeProfit) {
-            request['profitId'] = this.convertToBigInt(id);
+            request['profitId'] = id;
         }
         else {
-            request['orderId'] = this.convertToBigInt(id);
+            request['orderId'] = id;
         }
         if (stop) {
             params = this.omit(params, 'stop');
@@ -4000,11 +4012,11 @@ export default class xt extends Exchange {
         for (let i = 0; i < items.length; i++) {
             const entry = items[i];
             const marketId = this.safeString(entry, 'symbol');
-            const symbol = this.safeSymbol(marketId, market);
+            const symbolInner = this.safeSymbol(marketId, market);
             const timestamp = this.safeInteger(entry, 'createdTime');
             rates.push({
                 'info': entry,
-                'symbol': symbol,
+                'symbol': symbolInner,
                 'fundingRate': this.safeNumber(entry, 'fundingRate'),
                 'timestamp': timestamp,
                 'datetime': this.iso8601(timestamp),
@@ -4233,12 +4245,13 @@ export default class xt extends Exchange {
         for (let i = 0; i < positions.length; i++) {
             const entry = positions[i];
             const marketId = this.safeString(entry, 'symbol');
-            const market = this.safeMarket(marketId, undefined, undefined, 'contract');
+            const marketInner = this.safeMarket(marketId, undefined, undefined, 'contract');
             const positionSize = this.safeString(entry, 'positionSize');
             if (positionSize !== '0') {
-                return this.parsePosition(entry, market);
+                return this.parsePosition(entry, marketInner);
             }
         }
+        return undefined;
     }
     async fetchPositions(symbols = undefined, params = {}) {
         /**
@@ -4293,8 +4306,8 @@ export default class xt extends Exchange {
         for (let i = 0; i < positions.length; i++) {
             const entry = positions[i];
             const marketId = this.safeString(entry, 'symbol');
-            const market = this.safeMarket(marketId, undefined, undefined, 'contract');
-            result.push(this.parsePosition(entry, market));
+            const marketInner = this.safeMarket(marketId, undefined, undefined, 'contract');
+            result.push(this.parsePosition(entry, marketInner));
         }
         return this.filterByArray(result, 'symbol', undefined, false);
     }
@@ -4411,6 +4424,7 @@ export default class xt extends Exchange {
             this.throwBroadlyMatchedException(this.exceptions['broad'], message, feedback);
             throw new ExchangeError(feedback);
         }
+        return undefined;
     }
     sign(path, api = [], method = 'GET', params = {}, headers = undefined, body = undefined) {
         const signed = api[0] === 'private';
@@ -4447,7 +4461,7 @@ export default class xt extends Exchange {
             body = isUndefinedBody ? undefined : this.json(body);
             let payloadString = undefined;
             if (endpoint === 'spot') {
-                payloadString = 'xt-validate-algorithms=HmacSHA256&xt-validate-appkey=' + this.apiKey + '&xt-validate-recvwindow=' + recvWindow + '&xt-validate-timestamp=' + timestamp;
+                payloadString = 'xt-validate-algorithms=HmacSHA256&xt-validate-appkey=' + this.apiKey + '&xt-validate-recvwindow=' + recvWindow + '&xt-validate-t' + 'imestamp=' + timestamp;
                 if (isUndefinedBody) {
                     if (urlencoded) {
                         url += '?' + urlencoded;
@@ -4464,7 +4478,7 @@ export default class xt extends Exchange {
                 headers['xt-validate-recvwindow'] = recvWindow;
             }
             else {
-                payloadString = 'xt-validate-appkey=' + this.apiKey + '&xt-validate-timestamp=' + timestamp;
+                payloadString = 'xt-validate-appkey=' + this.apiKey + '&xt-validate-t' + 'imestamp=' + timestamp; // we can't glue timestamp, breaks in php
                 if (method === 'GET') {
                     if (urlencoded) {
                         url += '?' + urlencoded;

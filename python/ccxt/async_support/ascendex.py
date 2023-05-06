@@ -4,6 +4,7 @@
 # https://github.com/ccxt/ccxt/blob/master/CONTRIBUTING.md#how-to-contribute-code
 
 from ccxt.async_support.base.exchange import Exchange
+from ccxt.abstract.ascendex import ImplicitAPI
 import hashlib
 from ccxt.base.types import OrderSide
 from typing import Optional
@@ -20,7 +21,7 @@ from ccxt.base.decimal_to_precision import TICK_SIZE
 from ccxt.base.precise import Precise
 
 
-class ascendex(Exchange):
+class ascendex(Exchange, ImplicitAPI):
 
     def describe(self):
         return self.deep_extend(super(ascendex, self).describe(), {
@@ -436,13 +437,13 @@ class ascendex(Exchange):
             fee = self.safe_number_2(currency, 'withdrawFee', 'withdrawalFee')
             status = self.safe_string_2(currency, 'status', 'statusCode')
             active = (status == 'Normal')
-            margin = ('borrowAssetCode' in currency)
+            marginInside = ('borrowAssetCode' in currency)
             result[code] = {
                 'id': id,
                 'code': code,
                 'info': currency,
                 'type': None,
-                'margin': margin,
+                'margin': marginInside,
                 'name': self.safe_string(currency, 'assetName'),
                 'active': active,
                 'deposit': None,
@@ -459,6 +460,7 @@ class ascendex(Exchange):
                         'max': None,
                     },
                 },
+                'networks': {},
             }
         return result
 
@@ -2852,7 +2854,7 @@ class ascendex(Exchange):
 
     def handle_errors(self, httpCode, reason, url, method, headers, body, response, requestHeaders, requestBody):
         if response is None:
-            return  # fallback to default error handler
+            return None  # fallback to default error handler
         #
         #     {'code': 6010, 'message': 'Not enough balance.'}
         #     {'code': 60060, 'message': 'The order is already filled or canceled.'}
@@ -2868,3 +2870,4 @@ class ascendex(Exchange):
             self.throw_exactly_matched_exception(self.exceptions['exact'], message, feedback)
             self.throw_broadly_matched_exception(self.exceptions['broad'], message, feedback)
             raise ExchangeError(feedback)  # unknown message
+        return None

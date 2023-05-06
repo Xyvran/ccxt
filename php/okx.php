@@ -247,6 +247,7 @@ class okx extends Exchange {
                         'trade/orders-algo-history' => 1,
                         'trade/order-algo' => 1,
                         'account/subaccount/balances' => 10,
+                        'account/subaccount/interest-limits' => 4,
                         'asset/subaccount/bills' => 5 / 3,
                         'users/subaccount/list' => 10,
                         'users/subaccount/apikey' => 10,
@@ -307,6 +308,7 @@ class okx extends Exchange {
                         'account/quick-margin-borrow-repay' => 4,
                         'account/activate-option' => 4,
                         'account/set-auto-loan' => 4,
+                        'account/subaccount/set-loan-allocation' => 4,
                         'asset/transfer' => 10,
                         'asset/withdrawal' => 5 / 3,
                         'asset/withdrawal-lightning' => 5,
@@ -318,6 +320,7 @@ class okx extends Exchange {
                         'trade/cancel-batch-orders' => 1 / 15,
                         'trade/amend-order' => 1 / 3,
                         'trade/amend-batch-orders' => 1 / 3,
+                        'trade/amend-algos' => 1,
                         'trade/close-position' => 1,
                         'trade/order-algo' => 1,
                         'trade/cancel-algos' => 1,
@@ -2325,8 +2328,8 @@ class okx extends Exchange {
          */
         $stop = $this->safe_value($params, 'stop');
         if ($stop) {
-            $order = $this->cancel_orders(array( $id ), $symbol, $params);
-            return $this->safe_value($order, 0);
+            $orderInner = $this->cancel_orders(array( $id ), $symbol, $params);
+            return $this->safe_value($orderInner, 0);
         }
         if ($symbol === null) {
             throw new ArgumentsRequired($this->id . ' cancelOrder() requires a $symbol argument');
@@ -4932,12 +4935,12 @@ class okx extends Exchange {
             $entry = $data[$i];
             $timestamp = $this->safe_integer($entry, 'ts');
             $instId = $this->safe_string($entry, 'instId');
-            $market = $this->safe_market($instId);
+            $marketInner = $this->safe_market($instId);
             $currencyId = $this->safe_string($entry, 'ccy');
             $code = $this->safe_currency_code($currencyId);
             $result[] = array(
                 'info' => $entry,
-                'symbol' => $market['symbol'],
+                'symbol' => $marketInner['symbol'],
                 'code' => $code,
                 'timestamp' => $timestamp,
                 'datetime' => $this->iso8601($timestamp),
@@ -5925,7 +5928,7 @@ class okx extends Exchange {
 
     public function handle_errors($httpCode, $reason, $url, $method, $headers, $body, $response, $requestHeaders, $requestBody) {
         if (!$response) {
-            return; // fallback to default $error handler
+            return null; // fallback to default $error handler
         }
         //
         //    {
@@ -5961,5 +5964,6 @@ class okx extends Exchange {
             $this->throw_exactly_matched_exception($this->exceptions['exact'], $code, $feedback);
             throw new ExchangeError($feedback); // unknown $message
         }
+        return null;
     }
 }

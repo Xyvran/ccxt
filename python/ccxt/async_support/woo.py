@@ -4,6 +4,7 @@
 # https://github.com/ccxt/ccxt/blob/master/CONTRIBUTING.md#how-to-contribute-code
 
 from ccxt.async_support.base.exchange import Exchange
+from ccxt.abstract.woo import ImplicitAPI
 import hashlib
 from ccxt.base.types import OrderSide
 from typing import Optional
@@ -18,7 +19,7 @@ from ccxt.base.decimal_to_precision import TICK_SIZE
 from ccxt.base.precise import Precise
 
 
-class woo(Exchange):
+class woo(Exchange, ImplicitAPI):
 
     def describe(self):
         return self.deep_extend(super(woo, self).describe(), {
@@ -338,7 +339,10 @@ class woo(Exchange):
             symbol = base + '/' + quote
             contractSize = None
             linear = None
-            if isSwap:
+            margin = True
+            contract = isSwap
+            if contract:
+                margin = False
                 settleId = self.safe_string(parts, 2)
                 settle = self.safe_currency_code(settleId)
                 symbol = base + '/' + quote + ':' + settle
@@ -356,12 +360,12 @@ class woo(Exchange):
                 'settleId': settleId,
                 'type': marketType,
                 'spot': isSpot,
-                'margin': True,
+                'margin': margin,
                 'swap': isSwap,
                 'future': False,
                 'option': False,
                 'active': None,
-                'contract': isSwap,
+                'contract': contract,
                 'linear': linear,
                 'inverse': None,
                 'contractSize': contractSize,
@@ -1845,7 +1849,7 @@ class woo(Exchange):
 
     def handle_errors(self, httpCode, reason, url, method, headers, body, response, requestHeaders, requestBody):
         if not response:
-            return  # fallback to default error handler
+            return None  # fallback to default error handler
         #
         #     400 Bad Request {"success":false,"code":-1012,"message":"Amount is required for buy market orders when margin disabled."}
         #
@@ -1855,6 +1859,7 @@ class woo(Exchange):
             feedback = self.id + ' ' + self.json(response)
             self.throw_broadly_matched_exception(self.exceptions['broad'], body, feedback)
             self.throw_exactly_matched_exception(self.exceptions['exact'], errorCode, feedback)
+        return None
 
     def parse_income(self, income, market=None):
         #

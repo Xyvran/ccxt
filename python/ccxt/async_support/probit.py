@@ -4,6 +4,7 @@
 # https://github.com/ccxt/ccxt/blob/master/CONTRIBUTING.md#how-to-contribute-code
 
 from ccxt.async_support.base.exchange import Exchange
+from ccxt.abstract.probit import ImplicitAPI
 import math
 from ccxt.base.types import OrderSide
 from typing import Optional
@@ -25,7 +26,7 @@ from ccxt.base.decimal_to_precision import TICK_SIZE
 from ccxt.base.precise import Precise
 
 
-class probit(Exchange):
+class probit(Exchange, ImplicitAPI):
 
     def describe(self):
         return self.deep_extend(super(probit, self).describe(), {
@@ -424,7 +425,44 @@ class probit(Exchange):
             name = self.safe_string(displayName, 'en-us')
             platforms = self.safe_value(currency, 'platform', [])
             platformsByPriority = self.sort_by(platforms, 'priority')
-            platform = self.safe_value(platformsByPriority, 0, {})
+            platform = None
+            networkList = {}
+            for j in range(0, len(platformsByPriority)):
+                network = platformsByPriority[j]
+                id = self.safe_string(network, 'id')
+                networkCode = self.network_id_to_code(id)
+                currentDepositSuspended = self.safe_value(network, 'deposit_suspended')
+                currentWithdrawalSuspended = self.safe_value(network, 'withdrawal_suspended')
+                currentDeposit = not currentDepositSuspended
+                currentWithdraw = not currentWithdrawalSuspended
+                currentActive = currentDeposit and currentWithdraw
+                if currentActive:
+                    platform = network
+                precision = self.safe_string(network, 'precision')
+                withdrawFee = self.safe_value(network, 'withdrawal_fee', [])
+                fee = self.safe_value(withdrawFee, 0, {})
+                networkList[networkCode] = {
+                    'id': id,
+                    'network': networkCode,
+                    'active': currentActive,
+                    'deposit': currentDeposit,
+                    'withdraw': currentWithdraw,
+                    'fee': self.safe_number(fee, 'amount'),
+                    'precision': self.parse_number(precision),
+                    'limits': {
+                        'withdraw': {
+                            'min': self.safe_number(network, 'min_withdrawal_amount'),
+                            'max': None,
+                        },
+                        'deposit': {
+                            'min': self.safe_number(network, 'min_deposit_amount'),
+                            'max': None,
+                        },
+                    },
+                    'info': network,
+                }
+            if platform is None:
+                platform = self.safe_value(platformsByPriority, 0, {})
             depositSuspended = self.safe_value(platform, 'deposit_suspended')
             withdrawalSuspended = self.safe_value(platform, 'withdrawal_suspended')
             deposit = not depositSuspended
@@ -435,11 +473,11 @@ class probit(Exchange):
             # sometimes the withdrawal fee is an empty object
             # [{'amount': '0.015', 'priority': 1, 'currency_id': 'ETH'}, {}]
             for j in range(0, len(withdrawalFees)):
-                withdrawalFee = withdrawalFees[j]
-                amount = self.safe_number(withdrawalFee, 'amount')
-                priority = self.safe_integer(withdrawalFee, 'priority')
+                withdrawalFeeInner = withdrawalFees[j]
+                amount = self.safe_number(withdrawalFeeInner, 'amount')
+                priority = self.safe_integer(withdrawalFeeInner, 'priority')
                 if (amount is not None) and (priority is not None):
-                    fees.append(withdrawalFee)
+                    fees.append(withdrawalFeeInner)
             withdrawalFeesByPriority = self.sort_by(fees, 'priority')
             withdrawalFee = self.safe_value(withdrawalFeesByPriority, 0, {})
             fee = self.safe_number(withdrawalFee, 'amount')
@@ -467,6 +505,7 @@ class probit(Exchange):
                         'max': None,
                     },
                 },
+                'networks': networkList,
             }
         return result
 
@@ -1549,7 +1588,7 @@ class probit(Exchange):
 
     def handle_errors(self, code, reason, url, method, headers, body, response, requestHeaders, requestBody):
         if response is None:
-            return  # fallback to default error handler
+            return None  # fallback to default error handler
         if 'errorCode' in response:
             errorCode = self.safe_string(response, 'errorCode')
             message = self.safe_string(response, 'message')
@@ -1558,3 +1597,4 @@ class probit(Exchange):
                 self.throw_exactly_matched_exception(self.exceptions['exact'], message, feedback)
                 self.throw_broadly_matched_exception(self.exceptions['exact'], errorCode, feedback)
                 raise ExchangeError(feedback)
+        return None

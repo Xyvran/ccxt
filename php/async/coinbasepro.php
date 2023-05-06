@@ -293,6 +293,7 @@ class coinbasepro extends Exchange {
                             'max' => null,
                         ),
                     ),
+                    'networks' => array(),
                 );
             }
             return $result;
@@ -1577,8 +1578,8 @@ class coinbasepro extends Exchange {
                 for ($i = 0; $i < count($response); $i++) {
                     $account_id = $this->safe_string($response[$i], 'account_id');
                     $account = $this->safe_value($this->accountsById, $account_id);
-                    $code = $this->safe_string($account, 'code');
-                    $response[$i]['currency'] = $code;
+                    $codeInner = $this->safe_string($account, 'code');
+                    $response[$i]['currency'] = $codeInner;
                 }
             } else {
                 $response = Async\await($this->privateGetAccountsIdTransfers (array_merge($request, $params)));
@@ -1826,11 +1827,12 @@ class coinbasepro extends Exchange {
             }
             throw new ExchangeError($this->id . ' ' . $body);
         }
+        return null;
     }
 
-    public function request($path, $api = 'public', $method = 'GET', $params = array (), $headers = null, $body = null, $config = array (), $context = array ()) {
-        return Async\async(function () use ($path, $api, $method, $params, $headers, $body, $config, $context) {
-            $response = Async\await($this->fetch2($path, $api, $method, $params, $headers, $body, $config, $context));
+    public function request($path, $api = 'public', $method = 'GET', $params = array (), $headers = null, $body = null, $config = array ()) {
+        return Async\async(function () use ($path, $api, $method, $params, $headers, $body, $config) {
+            $response = Async\await($this->fetch2($path, $api, $method, $params, $headers, $body, $config));
             if (gettype($response) !== 'string') {
                 if (is_array($response) && array_key_exists('message', $response)) {
                     throw new ExchangeError($this->id . ' ' . $this->json($response));

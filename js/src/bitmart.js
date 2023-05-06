@@ -616,10 +616,15 @@ export default class bitmart extends Exchange {
             const quoteId = this.safeString(market, 'quote_currency');
             const base = this.safeCurrencyCode(baseId);
             const quote = this.safeCurrencyCode(quoteId);
-            const settle = 'USDT';
+            const settleId = 'USDT'; // this is bitmart's ID for usdt
+            const settle = this.safeCurrencyCode(settleId);
             const symbol = base + '/' + quote + ':' + settle;
             const productType = this.safeNumber(market, 'product_type');
-            const expiry = this.safeInteger(market, 'expire_timestamp');
+            const isFutures = (productType === 2);
+            let expiry = this.safeInteger(market, 'expire_timestamp');
+            if (!isFutures && (expiry === 0)) {
+                expiry = undefined;
+            }
             result.push({
                 'id': id,
                 'numericId': undefined,
@@ -629,12 +634,12 @@ export default class bitmart extends Exchange {
                 'settle': settle,
                 'baseId': baseId,
                 'quoteId': quoteId,
-                'settleId': undefined,
+                'settleId': settleId,
                 'type': 'swap',
                 'spot': false,
                 'margin': false,
                 'swap': (productType === 1),
-                'future': (productType === 2),
+                'future': isFutures,
                 'option': false,
                 'active': true,
                 'contract': true,
@@ -2169,10 +2174,10 @@ export default class bitmart extends Exchange {
             const defaultNetworks = this.safeValue(this.options, 'defaultNetworks');
             const defaultNetwork = this.safeStringUpper(defaultNetworks, code);
             const networks = this.safeValue(this.options, 'networks', {});
-            let network = this.safeStringUpper(params, 'network', defaultNetwork); // this line allows the user to specify either ERC20 or ETH
-            network = this.safeString(networks, network, network); // handle ERC20>ETH alias
-            if (network !== undefined) {
-                request['currency'] += '-' + network; // when network the currency need to be changed to currency + '-' + network https://developer-pro.bitmart.com/en/account/withdraw_apply.html on the end of page
+            let networkInner = this.safeStringUpper(params, 'network', defaultNetwork); // this line allows the user to specify either ERC20 or ETH
+            networkInner = this.safeString(networks, networkInner, networkInner); // handle ERC20>ETH alias
+            if (networkInner !== undefined) {
+                request['currency'] = request['currency'] + '-' + networkInner; // when network the currency need to be changed to currency + '-' + network https://developer-pro.bitmart.com/en/account/withdraw_apply.html on the end of page
                 params = this.omit(params, 'network');
             }
         }
@@ -2245,7 +2250,7 @@ export default class bitmart extends Exchange {
             let network = this.safeStringUpper(params, 'network', defaultNetwork); // this line allows the user to specify either ERC20 or ETH
             network = this.safeString(networks, network, network); // handle ERC20>ETH alias
             if (network !== undefined) {
-                request['currency'] += '-' + network; // when network the currency need to be changed to currency + '-' + network https://developer-pro.bitmart.com/en/account/withdraw_apply.html on the end of page
+                request['currency'] = request['currency'] + '-' + network; // when network the currency need to be changed to currency + '-' + network https://developer-pro.bitmart.com/en/account/withdraw_apply.html on the end of page
                 params = this.omit(params, 'network');
             }
         }
@@ -3028,7 +3033,7 @@ export default class bitmart extends Exchange {
     }
     handleErrors(code, reason, url, method, headers, body, response, requestHeaders, requestBody) {
         if (response === undefined) {
-            return;
+            return undefined;
         }
         //
         // spot
@@ -3052,5 +3057,6 @@ export default class bitmart extends Exchange {
             this.throwBroadlyMatchedException(this.exceptions['broad'], message, feedback);
             throw new ExchangeError(feedback); // unknown message
         }
+        return undefined;
     }
 }

@@ -4,6 +4,7 @@
 # https://github.com/ccxt/ccxt/blob/master/CONTRIBUTING.md#how-to-contribute-code
 
 from ccxt.base.exchange import Exchange
+from ccxt.abstract.poloniex import ImplicitAPI
 import hashlib
 from ccxt.base.types import OrderSide
 from typing import Optional
@@ -27,7 +28,7 @@ from ccxt.base.decimal_to_precision import TICK_SIZE
 from ccxt.base.precise import Precise
 
 
-class poloniex(Exchange):
+class poloniex(Exchange, ImplicitAPI):
 
     def describe(self):
         return self.deep_extend(super(poloniex, self).describe(), {
@@ -686,6 +687,7 @@ class poloniex(Exchange):
                 'withdraw': None,
                 'fee': fee,
                 'precision': None,
+                'networks': {},
                 'limits': {
                     'amount': {
                         'min': None,
@@ -2000,7 +2002,7 @@ class poloniex(Exchange):
 
     def handle_errors(self, code, reason, url, method, headers, body, response, requestHeaders, requestBody):
         if response is None:
-            return
+            return None
         #
         #     {
         #         "code" : 21709,
@@ -2008,9 +2010,10 @@ class poloniex(Exchange):
         #     }
         #
         if 'code' in response:
-            code = response['code']
+            codeInner = response['code']
             message = self.safe_string(response, 'message')
             feedback = self.id + ' ' + body
-            self.throw_exactly_matched_exception(self.exceptions['exact'], code, feedback)
+            self.throw_exactly_matched_exception(self.exceptions['exact'], codeInner, feedback)
             self.throw_broadly_matched_exception(self.exceptions['broad'], message, feedback)
             raise ExchangeError(feedback)  # unknown message
+        return None

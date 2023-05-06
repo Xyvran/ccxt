@@ -4,6 +4,7 @@
 # https://github.com/ccxt/ccxt/blob/master/CONTRIBUTING.md#how-to-contribute-code
 
 from ccxt.base.exchange import Exchange
+from ccxt.abstract.phemex import ImplicitAPI
 import hashlib
 import numbers
 from ccxt.base.types import OrderSide
@@ -28,7 +29,7 @@ from ccxt.base.decimal_to_precision import TICK_SIZE
 from ccxt.base.precise import Precise
 
 
-class phemex(Exchange):
+class phemex(Exchange, ImplicitAPI):
 
     def describe(self):
         return self.deep_extend(super(phemex, self).describe(), {
@@ -163,6 +164,7 @@ class phemex(Exchange):
                         'md/spot/ticker/24hr': 5,  # ?symbol=<symbol>&id=<id>
                         'md/spot/ticker/24hr/all': 5,  # ?symbol=<symbol>&id=<id>
                         'exchange/public/products': 5,  # contracts only
+                        'api-data/public/data/funding-rate-history': 5,
                     },
                 },
                 'v2': {
@@ -917,12 +919,13 @@ class phemex(Exchange):
                     },
                 },
                 'valueScale': valueScale,
+                'networks': {},
             }
         return result
 
-    def parse_bid_ask(self, bidask, priceKey=0, amountKey=1, market=None):
+    def custom_parse_bid_ask(self, bidask, priceKey=0, amountKey=1, market=None):
         if market is None:
-            raise ArgumentsRequired(self.id + ' parseBidAsk() requires a market argument')
+            raise ArgumentsRequired(self.id + ' customParseBidAsk() requires a market argument')
         amount = self.safe_string(bidask, amountKey)
         if market['spot']:
             amount = self.from_ev(amount, market)
@@ -944,7 +947,7 @@ class phemex(Exchange):
             orders = []
             bidasks = self.safe_value(orderbook, side)
             for k in range(0, len(bidasks)):
-                orders.append(self.parse_bid_ask(bidasks[k], priceKey, amountKey, market))
+                orders.append(self.custom_parse_bid_ask(bidasks[k], priceKey, amountKey, market))
             result[side] = orders
         result[bidsKey] = self.sort_by(result[bidsKey], 0, True)
         result[asksKey] = self.sort_by(result[asksKey], 0)
@@ -3548,6 +3551,7 @@ class phemex(Exchange):
         :returns dict: response from the exchange
         """
         self.check_required_argument('setPositionMode', symbol, 'symbol')
+        self.load_markets()
         market = self.market(symbol)
         if market['settle'] != 'USDT':
             raise BadSymbol(self.id + ' setPositionMode() supports USDT settled markets only')
@@ -3931,9 +3935,14 @@ class phemex(Exchange):
         self.check_required_symbol('fetchFundingRateHistory', symbol)
         self.load_markets()
         market = self.market(symbol)
-        if not market['swap'] or market['settle'] != 'USDT':
-            raise BadRequest(self.id + ' fetchFundingRateHistory() supports USDT swap contracts only')
-        customSymbol = '.' + market['id'] + 'FR8H'  # phemex requires a custom symbol for funding rate history
+        isUsdtSettled = market['settle'] == 'USDT'
+        if not market['swap']:
+            raise BadRequest(self.id + ' fetchFundingRateHistory() supports swap contracts only')
+        customSymbol = None
+        if isUsdtSettled:
+            customSymbol = '.' + market['id'] + 'FR8H'  # phemex requires a custom symbol for funding rate history
+        else:
+            customSymbol = '.' + market['baseId'] + 'FR8H'
         request = {
             'symbol': customSymbol,
         }
@@ -3941,7 +3950,11 @@ class phemex(Exchange):
             request['start'] = since
         if limit is not None:
             request['limit'] = limit
-        response = self.v2GetApiDataPublicDataFundingRateHistory(self.extend(request, params))
+        response = None
+        if isUsdtSettled:
+            response = self.v2GetApiDataPublicDataFundingRateHistory(self.extend(request, params))
+        else:
+            response = self.v1GetApiDataPublicDataFundingRateHistory(self.extend(request, params))
         #
         #    {
         #        "code":"0",
@@ -3976,7 +3989,7 @@ class phemex(Exchange):
 
     def handle_errors(self, httpCode, reason, url, method, headers, body, response, requestHeaders, requestBody):
         if response is None:
-            return  # fallback to default error handler
+            return None  # fallback to default error handler
         #
         #     {"code":30018,"msg":"phemex.data.size.uplimt","data":null}
         #     {"code":412,"msg":"Missing parameter - resolution","data":null}
@@ -3991,3 +4004,4 @@ class phemex(Exchange):
             self.throw_exactly_matched_exception(self.exceptions['exact'], errorCode, feedback)
             self.throw_broadly_matched_exception(self.exceptions['broad'], message, feedback)
             raise ExchangeError(feedback)  # unknown message
+        return None

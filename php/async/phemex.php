@@ -151,6 +151,7 @@ class phemex extends Exchange {
                         'md/spot/ticker/24hr' => 5, // ?symbol=<symbol>&id=<id>
                         'md/spot/ticker/24hr/all' => 5, // ?symbol=<symbol>&id=<id>
                         'exchange/public/products' => 5, // contracts only
+                        'api-data/public/data/funding-rate-history' => 5,
                     ),
                 ),
                 'v2' => array(
@@ -919,15 +920,16 @@ class phemex extends Exchange {
                         ),
                     ),
                     'valueScale' => $valueScale,
+                    'networks' => array(),
                 );
             }
             return $result;
         }) ();
     }
 
-    public function parse_bid_ask($bidask, $priceKey = 0, $amountKey = 1, $market = null) {
+    public function custom_parse_bid_ask($bidask, $priceKey = 0, $amountKey = 1, $market = null) {
         if ($market === null) {
-            throw new ArgumentsRequired($this->id . ' parseBidAsk() requires a $market argument');
+            throw new ArgumentsRequired($this->id . ' customParseBidAsk() requires a $market argument');
         }
         $amount = $this->safe_string($bidask, $amountKey);
         if ($market['spot']) {
@@ -952,7 +954,7 @@ class phemex extends Exchange {
             $orders = array();
             $bidasks = $this->safe_value($orderbook, $side);
             for ($k = 0; $k < count($bidasks); $k++) {
-                $orders[] = $this->parse_bid_ask($bidasks[$k], $priceKey, $amountKey, $market);
+                $orders[] = $this->custom_parse_bid_ask($bidasks[$k], $priceKey, $amountKey, $market);
             }
             $result[$side] = $orders;
         }
@@ -3784,6 +3786,7 @@ class phemex extends Exchange {
              * @return {array} response from the exchange
              */
             $this->check_required_argument('setPositionMode', $symbol, 'symbol');
+            Async\await($this->load_markets());
             $market = $this->market($symbol);
             if ($market['settle'] !== 'USDT') {
                 throw new BadSymbol($this->id . ' setPositionMode() supports USDT settled markets only');
@@ -4207,10 +4210,16 @@ class phemex extends Exchange {
             $this->check_required_symbol('fetchFundingRateHistory', $symbol);
             Async\await($this->load_markets());
             $market = $this->market($symbol);
-            if (!$market['swap'] || $market['settle'] !== 'USDT') {
-                throw new BadRequest($this->id . ' fetchFundingRateHistory() supports USDT swap contracts only');
+            $isUsdtSettled = $market['settle'] === 'USDT';
+            if (!$market['swap']) {
+                throw new BadRequest($this->id . ' fetchFundingRateHistory() supports swap contracts only');
             }
-            $customSymbol = '.' . $market['id'] . 'FR8H'; // phemex requires a custom $symbol for funding rate history
+            $customSymbol = null;
+            if ($isUsdtSettled) {
+                $customSymbol = '.' . $market['id'] . 'FR8H'; // phemex requires a custom $symbol for funding rate history
+            } else {
+                $customSymbol = '.' . $market['baseId'] . 'FR8H';
+            }
             $request = array(
                 'symbol' => $customSymbol,
             );
@@ -4220,7 +4229,12 @@ class phemex extends Exchange {
             if ($limit !== null) {
                 $request['limit'] = $limit;
             }
-            $response = Async\await($this->v2GetApiDataPublicDataFundingRateHistory (array_merge($request, $params)));
+            $response = null;
+            if ($isUsdtSettled) {
+                $response = Async\await($this->v2GetApiDataPublicDataFundingRateHistory (array_merge($request, $params)));
+            } else {
+                $response = Async\await($this->v1GetApiDataPublicDataFundingRateHistory (array_merge($request, $params)));
+            }
             //
             //    {
             //        "code":"0",
@@ -4258,7 +4272,7 @@ class phemex extends Exchange {
 
     public function handle_errors($httpCode, $reason, $url, $method, $headers, $body, $response, $requestHeaders, $requestBody) {
         if ($response === null) {
-            return; // fallback to default $error handler
+            return null; // fallback to default $error handler
         }
         //
         //     array("code":30018,"msg":"phemex.data.size.uplimt","data":null)
@@ -4275,5 +4289,6 @@ class phemex extends Exchange {
             $this->throw_broadly_matched_exception($this->exceptions['broad'], $message, $feedback);
             throw new ExchangeError($feedback); // unknown $message
         }
+        return null;
     }
 }
