@@ -340,6 +340,7 @@ class gate extends Exchange {
                             '{settle}/orders' => 1.5,
                             '{settle}/orders/{order_id}' => 1.5,
                             '{settle}/my_trades' => 1.5,
+                            '{settle}/my_trades_timerange' => 1.5,
                             '{settle}/position_close' => 1.5,
                             '{settle}/liquidates' => 1.5,
                             '{settle}/price_orders' => 1.5,
@@ -506,6 +507,8 @@ class gate extends Exchange {
                     'future' => 'delivery',
                     'futures' => 'futures',
                     'delivery' => 'delivery',
+                    'option' => 'options',
+                    'options' => 'options',
                 ),
                 'defaultType' => 'spot',
                 'swap' => array(
@@ -1225,7 +1228,9 @@ class gate extends Exchange {
         if ($market !== null) {
             if ($market['contract']) {
                 $request['contract'] = $market['id'];
-                $request['settle'] = $market['settleId'];
+                if (!$market['option']) {
+                    $request['settle'] = $market['settleId'];
+                }
             } else {
                 $request['currency_pair'] = $market['id'];
             }
@@ -1696,6 +1701,7 @@ class gate extends Exchange {
         return Async\async(function () use ($symbol, $params) {
             /**
              * fetch the trading fees for a $market
+             * @see https://www.gate.io/docs/developers/apiv4/en/#retrieve-personal-trading-fee
              * @param {string} $symbol unified $market $symbol
              * @param {array} $params extra parameters specific to the gate api endpoint
              * @return {array} a ~@link https://docs.ccxt.com/#/?id=fee-structure fee structure~
@@ -1728,6 +1734,7 @@ class gate extends Exchange {
         return Async\async(function () use ($params) {
             /**
              * fetch the trading fees for multiple markets
+             * @see https://www.gate.io/docs/developers/apiv4/en/#retrieve-personal-trading-fee
              * @param {array} $params extra parameters specific to the gate api endpoint
              * @return {array} a dictionary of ~@link https://docs.ccxt.com/#/?id=fee-structure fee structures~ indexed by market symbols
              */
@@ -1776,9 +1783,12 @@ class gate extends Exchange {
         //        "futures_maker_fee" => "0"
         //    }
         //
+        $gtDiscount = $this->safe_value($info, 'gt_discount');
+        $taker = $gtDiscount ? 'gt_taker_fee' : 'taker_fee';
+        $maker = $gtDiscount ? 'gt_maker_fee' : 'maker_fee';
         $contract = $this->safe_value($market, 'contract');
-        $takerKey = $contract ? 'futures_taker_fee' : 'taker_fee';
-        $makerKey = $contract ? 'futures_maker_fee' : 'maker_fee';
+        $takerKey = $contract ? 'futures_taker_fee' : $taker;
+        $makerKey = $contract ? 'futures_maker_fee' : $maker;
         return array(
             'info' => $info,
             'symbol' => $this->safe_string($market, 'symbol'),
@@ -2304,9 +2314,10 @@ class gate extends Exchange {
                 'funding' => 'privateMarginGetFundingAccounts',
                 'swap' => 'privateFuturesGetSettleAccounts',
                 'future' => 'privateDeliveryGetSettleAccounts',
+                'option' => 'privateOptionsGetAccounts',
             ));
             $response = Async\await($this->$method (array_merge($request, $requestQuery)));
-            $contract = (($type === 'swap') || ($type === 'future'));
+            $contract = (($type === 'swap') || ($type === 'future') || ($type === 'option'));
             if ($contract) {
                 $response = array( $response );
             }
@@ -2418,6 +2429,38 @@ class gate extends Exchange {
             //        position_margin => "0",
             //        user => "6333333",
             //    }
+            //
+            // option
+            //
+            //     {
+            //         "order_margin" => "0",
+            //         "bid_order_margin" => "0",
+            //         "init_margin" => "0",
+            //         "history" => array(
+            //             "dnw" => "32",
+            //             "set" => "0",
+            //             "point_fee" => "0",
+            //             "point_dnw" => "0",
+            //             "prem" => "0",
+            //             "point_refr" => "0",
+            //             "insur" => "0",
+            //             "fee" => "0",
+            //             "refr" => "0"
+            //         ),
+            //         "total" => "32",
+            //         "available" => "32",
+            //         "liq_triggered" => false,
+            //         "maint_margin" => "0",
+            //         "ask_order_margin" => "0",
+            //         "point" => "0",
+            //         "position_notional_limit" => "2000000",
+            //         "unrealised_pnl" => "0",
+            //         "equity" => "32",
+            //         "user" => 5691076,
+            //         "currency" => "USDT",
+            //         "short_enabled" => false,
+            //         "orders_limit" => 10
+            //     }
             //
             $result = array(
                 'info' => $response,
@@ -2662,6 +2705,7 @@ class gate extends Exchange {
                 'margin' => 'publicSpotGetTrades',
                 'swap' => 'publicFuturesGetSettleTrades',
                 'future' => 'publicDeliveryGetSettleTrades',
+                'option' => 'publicOptionsGetTrades',
             ));
             if ($limit !== null) {
                 $request['limit'] = $limit; // default 100, max 1000
@@ -2695,6 +2739,18 @@ class gate extends Exchange {
             //              create_time => "1634673380.182",
             //              contract => "ADA_USDT",
             //              price => "2.10486",
+            //         }
+            //     )
+            //
+            // option
+            //
+            //     array(
+            //         {
+            //             "size" => -5,
+            //             "id" => 25,
+            //             "create_time" => 1682378573,
+            //             "contract" => "ETH_USDT-20230526-2000-P",
+            //             "price" => "209.1"
             //         }
             //     )
             //
@@ -2790,7 +2846,7 @@ class gate extends Exchange {
             $method = $this->get_supported_mapping($type, array(
                 'spot' => 'privateSpotGetMyTrades',
                 'margin' => 'privateSpotGetMyTrades',
-                'swap' => 'privateFuturesGetSettleMyTrades',
+                'swap' => 'privateFuturesGetSettleMyTradesTimerange',
                 'future' => 'privateDeliveryGetSettleMyTrades',
             ));
             $response = Async\await($this->$method (array_merge($request, $params)));
@@ -2911,6 +2967,16 @@ class gate extends Exchange {
         //         "size" => 100,
         //         "price" => "100.123",
         //         "role" => "taker"
+        //     }
+        //
+        // option rest
+        //
+        //     {
+        //         "size" => -5,
+        //         "id" => 25,
+        //         "create_time" => 1682378573,
+        //         "contract" => "ETH_USDT-20230526-2000-P",
+        //         "price" => "209.1"
         //     }
         //
         $id = $this->safe_string($trade, 'id');
@@ -3258,8 +3324,10 @@ class gate extends Exchange {
                         // 'tif' => 'gtc', // gtc, ioc, poc PendingOrCancelled == $postOnly order
                         // 'text' => $clientOrderId, // 't-abcdef1234567890',
                         // 'auto_size' => '', // close_long, close_short, note size also needs to be set to 0
-                        'settle' => $market['settleId'], // filled in prepareRequest above
                     );
+                    if (!$market['option']) {
+                        $request['settle'] = $market['settleId']; // filled in prepareRequest above
+                    }
                     if ($isMarketOrder) {
                         $request['price'] = $price; // set to 0 for $market orders
                     } else {
@@ -3328,6 +3396,9 @@ class gate extends Exchange {
                     $request['text'] = $clientOrderId;
                 }
             } else {
+                if ($market['option']) {
+                    throw new NotSupported($this->id . ' createOrder() conditional option orders are not supported');
+                }
                 if ($contract) {
                     // $contract conditional order
                     $request = array(
@@ -3420,6 +3491,7 @@ class gate extends Exchange {
                 'margin' => 'privateSpotPost' . $methodTail,
                 'swap' => 'privateFuturesPostSettle' . $methodTail,
                 'future' => 'privateDeliveryPostSettle' . $methodTail,
+                'option' => 'privateOptionsPostOrders',
             ));
             $response = Async\await($this->$method ($this->deep_extend($request, $params)));
             //
@@ -3457,7 +3529,7 @@ class gate extends Exchange {
             //
             //     array("id" => 5891843)
             //
-            // future and perpetual swaps
+            // futures, perpetual swaps and $options
             //
             //     {
             //         "id" => 95938572327,
@@ -3643,7 +3715,7 @@ class gate extends Exchange {
         //        "status" => "open"
         //    }
         //
-        // FUTURE AND SWAP
+        // FUTURE, SWAP AND OPTION
         // createOrder/cancelOrder/fetchOrder
         //
         //    {
@@ -3835,6 +3907,10 @@ class gate extends Exchange {
         return Async\async(function () use ($id, $symbol, $params) {
             /**
              * Retrieves information on an order
+             * @see https://www.gate.io/docs/developers/apiv4/en/#get-a-single-order
+             * @see https://www.gate.io/docs/developers/apiv4/en/#get-a-single-order-2
+             * @see https://www.gate.io/docs/developers/apiv4/en/#get-a-single-order-3
+             * @see https://www.gate.io/docs/developers/apiv4/en/#get-a-single-order-4
              * @param {string} $id Order $id
              * @param {string} $symbol Unified $market $symbol, *required for spot and margin*
              * @param {array} $params Parameters specified by the exchange api
@@ -3858,7 +3934,7 @@ class gate extends Exchange {
             }
             $market = ($symbol === null) ? null : $this->market($symbol);
             list($type, $query) = $this->handle_market_type_and_params('fetchOrder', $market, $params);
-            $contract = ($type === 'swap') || ($type === 'future');
+            $contract = ($type === 'swap') || ($type === 'future') || ($type === 'option');
             list($request, $requestParams) = $contract ? $this->prepare_request($market, $type, $query) : $this->spot_order_prepare_request($market, $stop, $query);
             $request['order_id'] = $orderId;
             $methodMiddle = $stop ? 'PriceOrders' : 'Orders';
@@ -3867,6 +3943,7 @@ class gate extends Exchange {
                 'margin' => 'privateSpotGet' . $methodMiddle . 'OrderId',
                 'swap' => 'privateFuturesGetSettle' . $methodMiddle . 'OrderId',
                 'future' => 'privateDeliveryGetSettle' . $methodMiddle . 'OrderId',
+                'option' => 'privateOptionsGetOrdersOrderId',
             ));
             $response = Async\await($this->$method (array_merge($request, $requestParams)));
             return $this->parse_order($response, $market);
@@ -3940,10 +4017,11 @@ class gate extends Exchange {
                 'margin' => 'privateSpotGet' . $methodTail,
                 'swap' => 'privateFuturesGetSettle' . $methodTail,
                 'future' => 'privateDeliveryGetSettle' . $methodTail,
+                'option' => 'privateOptionsGetOrders',
             ));
             $response = Async\await($this->$method (array_merge($request, $requestParams)));
             //
-            // SPOT Open Orders
+            // $spot open $orders
             //
             //    array(
             //        array(
@@ -3983,7 +4061,7 @@ class gate extends Exchange {
             //        ...
             //    )
             //
-            // SPOT
+            // $spot
             //
             //    array(
             //        {
@@ -4014,7 +4092,7 @@ class gate extends Exchange {
             //        }
             //    )
             //
-            // Spot Stop
+            // $spot $stop
             //
             //    array(
             //        {
@@ -4039,7 +4117,7 @@ class gate extends Exchange {
             //        }
             //    )
             //
-            // Perpetual Swap
+            // swap
             //
             //    array(
             //        {
@@ -4061,6 +4139,32 @@ class gate extends Exchange {
             //           "price" => "0"
             //        }
             //    )
+            //
+            // option
+            //
+            //     array(
+            //         {
+            //             "id" => 2593450699,
+            //             "contract" => "BTC_USDT-20230601-27500-C",
+            //             "mkfr" => "0.0003",
+            //             "tkfr" => "0.0003",
+            //             "tif" => "gtc",
+            //             "is_reduce_only" => false,
+            //             "create_time" => 1685503873,
+            //             "price" => "200",
+            //             "size" => 1,
+            //             "refr" => "0",
+            //             "left" => 1,
+            //             "text" => "api",
+            //             "fill_price" => "0",
+            //             "user" => 5691076,
+            //             "status" => "open",
+            //             "is_liq" => false,
+            //             "refu" => 0,
+            //             "is_close" => false,
+            //             "iceberg" => 0
+            //         }
+            //     )
             //
             $result = $response;
             if ($openSpotOrders) {
@@ -4098,6 +4202,7 @@ class gate extends Exchange {
                 'margin' => 'privateSpotDelete' . $pathMiddle . 'OrdersOrderId',
                 'swap' => 'privateFuturesDeleteSettle' . $pathMiddle . 'OrdersOrderId',
                 'future' => 'privateDeliveryDeleteSettle' . $pathMiddle . 'OrdersOrderId',
+                'option' => 'privateOptionsDeleteOrdersOrderId',
             ));
             $response = Async\await($this->$method (array_merge($request, $requestParams)));
             //
@@ -4155,7 +4260,7 @@ class gate extends Exchange {
             //         "status" => "canceled"
             //     }
             //
-            // perpetual swaps
+            // swap, future and option
             //
             //     {
             //         $id => "82241928192",
@@ -4205,6 +4310,7 @@ class gate extends Exchange {
                 'margin' => 'privateSpotDelete' . $methodTail,
                 'swap' => 'privateFuturesDeleteSettle' . $methodTail,
                 'future' => 'privateDeliveryDeleteSettle' . $methodTail,
+                'option' => 'privateOptionsDeleteOrders',
             ));
             $response = Async\await($this->$method (array_merge($request, $requestParams)));
             //
@@ -4243,6 +4349,7 @@ class gate extends Exchange {
         return Async\async(function () use ($code, $amount, $fromAccount, $toAccount, $params) {
             /**
              * transfer $currency internally between wallets on the same account
+             * @see https://www.gate.io/docs/developers/apiv4/en/#transfer-between-trading-accounts
              * @param {string} $code unified $currency $code for $currency being transferred
              * @param {float} $amount the $amount of $currency to transfer
              * @param {string} $fromAccount the account to transfer $currency from
@@ -4303,7 +4410,7 @@ class gate extends Exchange {
     public function parse_transfer($transfer, $currency = null) {
         $timestamp = $this->milliseconds();
         return array(
-            'id' => null,
+            'id' => $this->safe_string($transfer, 'tx_id'),
             'timestamp' => $timestamp,
             'datetime' => $this->iso8601($timestamp),
             'currency' => $this->safe_currency_code(null, $currency),
