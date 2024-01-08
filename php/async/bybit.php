@@ -4486,6 +4486,10 @@ class bybit extends Exchange {
                     $request['orderFilter'] = 'StopOrder';
                 }
             }
+            $clientOrderId = $this->safe_value_2($params, 'origClientOrderId', 'clientOrderId'); // patched xyvran
+            if ($clientOrderId !== null) {
+                $request['orderLinkId'] = $clientOrderId;
+            } // patched xyvran
             if ($limit !== null) {
                 $request['limit'] = $limit;
             }
