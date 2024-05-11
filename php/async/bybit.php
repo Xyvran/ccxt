@@ -4821,6 +4821,10 @@ class bybit extends Exchange {
             if ($since !== null) {
                 $request['startTime'] = $since;
             }
+            $clientOrderId = $this->safe_value_2($params, 'origClientOrderId', 'clientOrderId'); // patched xyvran
+            if ($clientOrderId !== null) {
+                $request['orderLinkId'] = $clientOrderId;
+            } // patched xyvran
             $until = $this->safe_integer($params, 'until'); // unified in milliseconds
             $endTime = $this->safe_integer($params, 'endTime', $until); // exchange-specific in milliseconds
             $params = $this->omit($params, array( 'endTime', 'until' ));
