@@ -342,6 +342,67 @@ class bitrue extends Exchange {
                 'networks' => array(
                     'ERC20' => 'ETH',
                     'TRC20' => 'TRX',
+                    'AETERNITY' => 'Aeternity',
+                    'AION' => 'AION',
+                    'ALGO' => 'Algorand',
+                    'ASK' => 'ASK',
+                    'ATOM' => 'ATOM',
+                    'AVAXC' => 'AVAX C-Chain',
+                    'BCH' => 'BCH',
+                    'BEP2' => 'BEP2',
+                    'BEP20' => 'BEP20',
+                    'Bitcoin' => 'Bitcoin',
+                    'BRP20' => 'BRP20',
+                    'ADA' => 'Cardano',
+                    'CASINOCOIN' => 'CasinoCoin',
+                    'CASINOCOIN-XRPL' => 'CasinoCoin XRPL',
+                    'CONTENTOS' => 'Contentos',
+                    'DASH' => 'Dash',
+                    'DECOIN' => 'Decoin',
+                    'DFI' => 'DeFiChain',
+                    'DGB' => 'DGB',
+                    'DIVI' => 'Divi',
+                    'DOGE' => 'dogecoin',
+                    'EOS' => 'EOS',
+                    'ETC' => 'ETC',
+                    'FILECOIN' => 'Filecoin',
+                    'FREETON' => 'FREETON',
+                    'HBAR' => 'HBAR',
+                    'HEDERA' => 'Hedera Hashgraph',
+                    'HRC20' => 'HRC20',
+                    'ICON' => 'ICON',
+                    'ICP' => 'ICP',
+                    'IGNIS' => 'Ignis',
+                    'INTERNETCOMPUTER' => 'Internet Computer',
+                    'IOTA' => 'IOTA',
+                    'KAVA' => 'KAVA',
+                    'KSM' => 'KSM',
+                    'LTC' => 'LiteCoin',
+                    'LUNA' => 'Luna',
+                    'MATIC' => 'MATIC',
+                    'MOBILECOIN' => 'Mobile Coin',
+                    'MONACOIN' => 'MonaCoin',
+                    'XMR' => 'Monero',
+                    'NEM' => 'NEM',
+                    'NEP5' => 'NEP5',
+                    'OMNI' => 'OMNI',
+                    'PAC' => 'PAC',
+                    'DOT' => 'Polkadot',
+                    'RAVEN' => 'Ravencoin',
+                    'SAFEX' => 'Safex',
+                    'SOL' => 'SOLANA',
+                    'SGB' => 'Songbird',
+                    'XML' => 'Stellar Lumens',
+                    'XYM' => 'Symbol',
+                    'XTZ' => 'Tezos',
+                    'theta' => 'theta',
+                    'THETA' => 'THETA',
+                    'VECHAIN' => 'VeChain',
+                    'WANCHAIN' => 'Wanchain',
+                    'XINFIN' => 'XinFin Network',
+                    'XRP' => 'XRP',
+                    'XRPL' => 'XRPL',
+                    'ZIL' => 'ZIL',
                 ),
                 'defaultType' => 'spot',
                 'timeframes' => array(
@@ -516,78 +577,6 @@ class bitrue extends Exchange {
             //
             return $this->safe_integer($response, 'serverTime');
         }) ();
-    }
-
-    public function safe_network($networkId) {
-        $uppercaseNetworkId = strtoupper($networkId);
-        $networksById = array(
-            'Aeternity' => 'Aeternity',
-            'AION' => 'AION',
-            'Algorand' => 'Algorand',
-            'ASK' => 'ASK',
-            'ATOM' => 'ATOM',
-            'AVAX C-Chain' => 'AVAX C-Chain',
-            'bch' => 'bch',
-            'BCH' => 'BCH',
-            'BEP2' => 'BEP2',
-            'BEP20' => 'BEP20',
-            'Bitcoin' => 'Bitcoin',
-            'BRP20' => 'BRP20',
-            'Cardano' => 'ADA',
-            'CasinoCoin' => 'CasinoCoin',
-            'CasinoCoin XRPL' => 'CasinoCoin XRPL',
-            'Contentos' => 'Contentos',
-            'Dash' => 'Dash',
-            'Decoin' => 'Decoin',
-            'DeFiChain' => 'DeFiChain',
-            'DGB' => 'DGB',
-            'Divi' => 'Divi',
-            'dogecoin' => 'DOGE',
-            'EOS' => 'EOS',
-            'ERC20' => 'ERC20',
-            'ETC' => 'ETC',
-            'Filecoin' => 'Filecoin',
-            'FREETON' => 'FREETON',
-            'HBAR' => 'HBAR',
-            'Hedera Hashgraph' => 'Hedera Hashgraph',
-            'HRC20' => 'HRC20',
-            'ICON' => 'ICON',
-            'ICP' => 'ICP',
-            'Ignis' => 'Ignis',
-            'Internet Computer' => 'Internet Computer',
-            'IOTA' => 'IOTA',
-            'KAVA' => 'KAVA',
-            'KSM' => 'KSM',
-            'LiteCoin' => 'LiteCoin',
-            'Luna' => 'Luna',
-            'MATIC' => 'MATIC',
-            'Mobile Coin' => 'Mobile Coin',
-            'MonaCoin' => 'MonaCoin',
-            'Monero' => 'Monero',
-            'NEM' => 'NEM',
-            'NEP5' => 'NEP5',
-            'OMNI' => 'OMNI',
-            'PAC' => 'PAC',
-            'Polkadot' => 'Polkadot',
-            'Ravencoin' => 'Ravencoin',
-            'Safex' => 'Safex',
-            'SOLANA' => 'SOL',
-            'Songbird' => 'Songbird',
-            'Stellar Lumens' => 'Stellar Lumens',
-            'Symbol' => 'Symbol',
-            'Tezos' => 'XTZ',
-            'theta' => 'theta',
-            'THETA' => 'THETA',
-            'TRC20' => 'TRC20',
-            'VeChain' => 'VeChain',
-            'VECHAIN' => 'VECHAIN',
-            'Wanchain' => 'Wanchain',
-            'XinFin Network' => 'XinFin Network',
-            'XRP' => 'XRP',
-            'XRPL' => 'XRPL',
-            'ZIL' => 'ZIL',
-        );
-        return $this->safe_string_2($networksById, $networkId, $uppercaseNetworkId, $networkId);
     }
 
     public function fetch_currencies($params = array ()): PromiseInterface {
@@ -821,7 +810,7 @@ class bitrue extends Exchange {
         }) ();
     }
 
-    public function parse_market($market): array {
+    public function parse_market(array $market): array {
         $id = $this->safe_string($market, 'symbol');
         $lowercaseId = $this->safe_string_lower($market, 'symbol');
         $side = $this->safe_integer($market, 'side'); // 1 linear, 0 inverse, null spot
@@ -1604,7 +1593,7 @@ class bitrue extends Exchange {
         }) ();
     }
 
-    public function parse_trade($trade, ?array $market = null): array {
+    public function parse_trade(array $trade, ?array $market = null): array {
         //
         // fetchTrades
         //
@@ -1742,7 +1731,7 @@ class bitrue extends Exchange {
         }) ();
     }
 
-    public function parse_order_status($status) {
+    public function parse_order_status(?string $status) {
         $statuses = array(
             'INIT' => 'open',
             'PENDING_CREATE' => 'open',
@@ -1757,7 +1746,7 @@ class bitrue extends Exchange {
         return $this->safe_string($statuses, $status, $status);
     }
 
-    public function parse_order($order, ?array $market = null): array {
+    public function parse_order(array $order, ?array $market = null): array {
         //
         // createOrder - spot
         //
@@ -1908,7 +1897,7 @@ class bitrue extends Exchange {
              * @param {string} $type 'market' or 'limit'
              * @param {string} $side 'buy' or 'sell'
              * @param {float} $amount how much of currency you want to trade in units of base currency
-             * @param {float} [$price] the $price at which the order is to be fullfilled, in units of the quote currency, ignored in $market orders
+             * @param {float} [$price] the $price at which the order is to be fulfilled, in units of the quote currency, ignored in $market orders
              * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @param {float} [$params->triggerPrice] *spot only* the $price at which a trigger order is triggered at
              * @param {string} [$params->clientOrderId] a unique id for the order, automatically generated if not sent
@@ -2039,6 +2028,7 @@ class bitrue extends Exchange {
              * @see https://github.com/Bitrue-exchange/Spot-official-api-docs#query-order-user_data
              * @see https://www.bitrue.com/api-docs#query-order-user_data-hmac-sha256
              * @see https://www.bitrue.com/api_docs_includes_file/delivery.html#query-order-user_data-hmac-sha256
+             * @param {string} $id the order $id
              * @param {string} $symbol unified $symbol of the $market the order was made in
              * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {array} An ~@link https://docs.ccxt.com/#/?$id=order-structure order structure~
@@ -2624,7 +2614,7 @@ class bitrue extends Exchange {
         return $this->safe_string($statuses, $status, $status);
     }
 
-    public function parse_transaction($transaction, ?array $currency = null): array {
+    public function parse_transaction(array $transaction, ?array $currency = null): array {
         //
         // fetchDeposits
         //
@@ -3133,6 +3123,11 @@ class bitrue extends Exchange {
                 $signPath = $signPath . '/' . $version . '/' . $path;
                 $signMessage = $timestamp . $method . $signPath;
                 if ($method === 'GET') {
+                    $keys = is_array($params) ? array_keys($params) : array();
+                    $keysLength = count($keys);
+                    if ($keysLength > 0) {
+                        $signMessage .= '?' . $this->urlencode($params);
+                    }
                     $signature = $this->hmac($this->encode($signMessage), $this->encode($this->secret), 'sha256');
                     $headers = array(
                         'X-CH-APIKEY' => $this->apiKey,
@@ -3145,7 +3140,7 @@ class bitrue extends Exchange {
                         'recvWindow' => $recvWindow,
                     ), $params);
                     $body = $this->json($query);
-                    $signMessage = $signMessage . json_encode ($body);
+                    $signMessage .= $body;
                     $signature = $this->hmac($this->encode($signMessage), $this->encode($this->secret), 'sha256');
                     $headers = array(
                         'Content-Type' => 'application/json',
@@ -3163,7 +3158,7 @@ class bitrue extends Exchange {
         return array( 'url' => $url, 'method' => $method, 'body' => $body, 'headers' => $headers );
     }
 
-    public function handle_errors($code, $reason, $url, $method, $headers, $body, $response, $requestHeaders, $requestBody) {
+    public function handle_errors(int $code, string $reason, string $url, string $method, array $headers, string $body, $response, $requestHeaders, $requestBody) {
         if (($code === 418) || ($code === 429)) {
             throw new DDoSProtection($this->id . ' ' . (string) $code . ' ' . $reason . ' ' . $body);
         }

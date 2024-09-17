@@ -182,6 +182,7 @@ class gemini extends Exchange {
                         'v1/account/create' => 1,
                         'v1/account/list' => 1,
                         'v1/heartbeat' => 1,
+                        'v1/roles' => 1,
                     ),
                 ),
             ),
@@ -837,8 +838,9 @@ class gemini extends Exchange {
     }
 
     public function fetch_ticker_v1_and_v2(string $symbol, $params = array ()) {
-        $tickerA = $this->fetch_ticker_v1($symbol, $params);
-        $tickerB = $this->fetch_ticker_v2($symbol, $params);
+        $tickerPromiseA = $this->fetch_ticker_v1($symbol, $params);
+        $tickerPromiseB = $this->fetch_ticker_v2($symbol, $params);
+        list($tickerA, $tickerB) = array( $tickerPromiseA, $tickerPromiseB );
         return $this->deep_extend($tickerA, array(
             'open' => $tickerB['open'],
             'high' => $tickerB['high'],
@@ -857,7 +859,7 @@ class gemini extends Exchange {
          * @see https://docs.gemini.com/rest-api/#ticker-v2
          * @param {string} $symbol unified $symbol of the market to fetch the ticker for
          * @param {array} [$params] extra parameters specific to the exchange API endpoint
-         * @param {array} [$params->fetchTickerMethod] 'fetchTickerV2', 'fetchTickerV1' or 'fetchTickerV1AndV2' - 'fetchTickerV1' for original ccxt.gemini.fetch_ticker- 'fetchTickerV1AndV2' for 2 api calls to get the result of both fetchTicker methods - default = 'fetchTickerV1'
+         * @param {array} [$params->fetchTickerMethod] 'fetchTickerV2', 'fetchTickerV1' or 'fetchTickerV1AndV2' - 'fetchTickerV1' for original ccxt.gemini.fetchTicker - 'fetchTickerV1AndV2' for 2 api calls to get the result of both fetchTicker methods - default = 'fetchTickerV1'
          * @return {array} a ~@link https://docs.ccxt.com/#/?id=ticker-structure ticker structure~
          */
         $method = $this->safe_value($this->options, 'fetchTickerMethod', 'fetchTickerV1');
@@ -991,7 +993,7 @@ class gemini extends Exchange {
         return $this->parse_tickers($response, $symbols);
     }
 
-    public function parse_trade($trade, ?array $market = null): array {
+    public function parse_trade(array $trade, ?array $market = null): array {
         //
         // public fetchTrades
         //
@@ -1177,7 +1179,7 @@ class gemini extends Exchange {
         return $this->parse_balance($response);
     }
 
-    public function parse_order($order, ?array $market = null): array {
+    public function parse_order(array $order, ?array $market = null): array {
         //
         // createOrder (private)
         //
@@ -1434,7 +1436,7 @@ class gemini extends Exchange {
          * @param {string} $type must be 'limit'
          * @param {string} $side 'buy' or 'sell'
          * @param {float} $amount how much of currency you want to trade in units of base currency
-         * @param {float} [$price] the $price at which the order is to be fullfilled, in units of the quote currency, ignored in $market orders
+         * @param {float} [$price] the $price at which the order is to be fulfilled, in units of the quote currency, ignored in $market orders
          * @param {array} [$params] extra parameters specific to the exchange API endpoint
          * @return {array} an ~@link https://docs.ccxt.com/#/?id=order-structure order structure~
          */
@@ -1670,7 +1672,7 @@ class gemini extends Exchange {
         return $this->parse_transactions($response);
     }
 
-    public function parse_transaction($transaction, ?array $currency = null): array {
+    public function parse_transaction(array $transaction, ?array $currency = null): array {
         //
         // withdraw
         //
@@ -1728,7 +1730,7 @@ class gemini extends Exchange {
         );
     }
 
-    public function parse_transaction_status($status) {
+    public function parse_transaction_status(?string $status) {
         $statuses = array(
             'Advanced' => 'ok',
             'Complete' => 'ok',
@@ -1833,7 +1835,7 @@ class gemini extends Exchange {
         return array( 'url' => $url, 'method' => $method, 'body' => $body, 'headers' => $headers );
     }
 
-    public function handle_errors($httpCode, $reason, $url, $method, $headers, $body, $response, $requestHeaders, $requestBody) {
+    public function handle_errors(int $httpCode, string $reason, string $url, string $method, array $headers, string $body, $response, $requestHeaders, $requestBody) {
         if ($response === null) {
             if (gettype($body) === 'string') {
                 $feedback = $this->id . ' ' . $body;

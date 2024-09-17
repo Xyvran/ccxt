@@ -2,10 +2,10 @@
 //  ---------------------------------------------------------------------------
 
 import krakenRest from '../kraken.js';
-import { ExchangeError, BadSymbol, PermissionDenied, AccountSuspended, BadRequest, InsufficientFunds, InvalidOrder, OrderNotFound, NotSupported, RateLimitExceeded, ExchangeNotAvailable, InvalidNonce, AuthenticationError } from '../base/errors.js';
+import { ExchangeError, BadSymbol, PermissionDenied, AccountSuspended, BadRequest, InsufficientFunds, InvalidOrder, OrderNotFound, NotSupported, RateLimitExceeded, ExchangeNotAvailable, ChecksumError, AuthenticationError } from '../base/errors.js';
 import { ArrayCache, ArrayCacheByTimestamp, ArrayCacheBySymbolById } from '../base/ws/Cache.js';
 import { Precise } from '../base/Precise.js';
-import type { Int, Strings, OrderSide, OrderType, Str, OrderBook, Order, Trade, Ticker, Tickers, OHLCV, Num } from '../base/types.js';
+import type { Int, Strings, OrderSide, OrderType, Str, OrderBook, Order, Trade, Ticker, Tickers, OHLCV, Num, Dict, Balances } from '../base/types.js';
 import Client from '../base/ws/Client.js';
 //  ---------------------------------------------------------------------------
 
@@ -14,7 +14,7 @@ export default class kraken extends krakenRest {
         return this.deepExtend (super.describe (), {
             'has': {
                 'ws': true,
-                'watchBalance': false, // no such type of subscription as of 2021-01-05
+                'watchBalance': true,
                 'watchMyTrades': true,
                 'watchOHLCV': true,
                 'watchOrderBook': true,
@@ -37,6 +37,7 @@ export default class kraken extends krakenRest {
                     'ws': {
                         'public': 'wss://ws.kraken.com',
                         'private': 'wss://ws-auth.kraken.com',
+                        'privateV2': 'wss://ws-auth.kraken.com/v2',
                         'beta': 'wss://beta-ws.kraken.com',
                         'beta-private': 'wss://beta-ws-auth.kraken.com',
                     },
@@ -50,7 +51,9 @@ export default class kraken extends krakenRest {
                 'OHLCVLimit': 1000,
                 'ordersLimit': 1000,
                 'symbolsByOrderId': {},
-                'checksum': true,
+                'watchOrderBook': {
+                    'checksum': true,
+                },
             },
             'exceptions': {
                 'ws': {
@@ -112,13 +115,13 @@ export default class kraken extends krakenRest {
         /**
          * @method
          * @name kraken#createOrderWs
-         * @see https://docs.kraken.com/websockets/#message-addOrder
+         * @see https://docs.kraken.com/api/docs/websocket-v1/addorder
          * @description create a trade order
          * @param {string} symbol unified symbol of the market to create an order in
          * @param {string} type 'market' or 'limit'
          * @param {string} side 'buy' or 'sell'
          * @param {float} amount how much of currency you want to trade in units of base currency
-         * @param {float} [price] the price at which the order is to be fullfilled, in units of the quote currency, ignored in market orders
+         * @param {float} [price] the price at which the order is to be fulfilled, in units of the quote currency, ignored in market orders
          * @param {object} [params] extra parameters specific to the exchange API endpoint
          * @returns {object} an [order structure]{@link https://docs.ccxt.com/#/?id=order-structure}
          */
@@ -128,7 +131,7 @@ export default class kraken extends krakenRest {
         const url = this.urls['api']['ws']['private'];
         const requestId = this.requestId ();
         const messageHash = requestId;
-        let request = {
+        let request: Dict = {
             'event': 'addOrder',
             'token': token,
             'reqid': requestId,
@@ -137,7 +140,7 @@ export default class kraken extends krakenRest {
             'pair': market['wsId'],
             'volume': this.amountToPrecision (symbol, amount),
         };
-        [ request, params ] = this.orderRequest ('createOrderWs', symbol, type, request, price, params);
+        [ request, params ] = this.orderRequest ('createOrderWs', symbol, type, request, amount, price, params);
         return await this.watch (url, messageHash, this.extend (request, params), messageHash);
     }
 
@@ -166,18 +169,18 @@ export default class kraken extends krakenRest {
         client.resolve (order, messageHash);
     }
 
-    async editOrderWs (id: string, symbol: string, type: OrderType, side: OrderSide, amount: number, price: Num = undefined, params = {}): Promise<Order> {
+    async editOrderWs (id: string, symbol: string, type: OrderType, side: OrderSide, amount: Num = undefined, price: Num = undefined, params = {}): Promise<Order> {
         /**
          * @method
          * @name kraken#editOrderWs
          * @description edit a trade order
-         * @see https://docs.kraken.com/websockets/#message-editOrder
+         * @see https://docs.kraken.com/api/docs/websocket-v1/editorder
          * @param {string} id order id
          * @param {string} symbol unified symbol of the market to create an order in
          * @param {string} type 'market' or 'limit'
          * @param {string} side 'buy' or 'sell'
          * @param {float} amount how much of the currency you want to trade in units of the base currency
-         * @param {float} [price] the price at which the order is to be fullfilled, in units of the quote currency, ignored in market orders
+         * @param {float} [price] the price at which the order is to be fulfilled, in units of the quote currency, ignored in market orders
          * @param {object} [params] extra parameters specific to the exchange API endpoint
          * @returns {object} an [order structure]{@link https://docs.ccxt.com/#/?id=order-structure}
          */
@@ -187,15 +190,17 @@ export default class kraken extends krakenRest {
         const url = this.urls['api']['ws']['private'];
         const requestId = this.requestId ();
         const messageHash = requestId;
-        let request = {
+        let request: Dict = {
             'event': 'editOrder',
             'token': token,
             'reqid': requestId,
             'orderid': id,
             'pair': market['wsId'],
-            'volume': this.amountToPrecision (symbol, amount),
         };
-        [ request, params ] = this.orderRequest ('editOrderWs', symbol, type, request, price, params);
+        if (amount !== undefined) {
+            request['volume'] = this.amountToPrecision (symbol, amount);
+        }
+        [ request, params ] = this.orderRequest ('editOrderWs', symbol, type, request, amount, price, params);
         return await this.watch (url, messageHash, this.extend (request, params), messageHash);
     }
 
@@ -203,7 +208,7 @@ export default class kraken extends krakenRest {
         /**
          * @method
          * @name kraken#cancelOrdersWs
-         * @see https://docs.kraken.com/websockets/#message-cancelOrder
+         * @see https://docs.kraken.com/api/docs/websocket-v1/cancelorder
          * @description cancel multiple orders
          * @param {string[]} ids order ids
          * @param {string} symbol unified market symbol, default is undefined
@@ -215,7 +220,7 @@ export default class kraken extends krakenRest {
         const url = this.urls['api']['ws']['private'];
         const requestId = this.requestId ();
         const messageHash = requestId;
-        const request = {
+        const request: Dict = {
             'event': 'cancelOrder',
             'token': token,
             'reqid': requestId,
@@ -228,7 +233,7 @@ export default class kraken extends krakenRest {
         /**
          * @method
          * @name kraken#cancelOrderWs
-         * @see https://docs.kraken.com/websockets/#message-cancelOrder
+         * @see https://docs.kraken.com/api/docs/websocket-v1/cancelorder
          * @description cancels an open order
          * @param {string} id order id
          * @param {string} symbol unified symbol of the market the order was made in
@@ -242,7 +247,7 @@ export default class kraken extends krakenRest {
         const messageHash = requestId;
         const clientOrderId = this.safeValue2 (params, 'userref', 'clientOrderId', id);
         params = this.omit (params, [ 'userref', 'clientOrderId' ]);
-        const request = {
+        const request: Dict = {
             'event': 'cancelOrder',
             'token': token,
             'reqid': requestId,
@@ -268,7 +273,7 @@ export default class kraken extends krakenRest {
         /**
          * @method
          * @name kraken#cancelAllOrdersWs
-         * @see https://docs.kraken.com/websockets/#message-cancelAll
+         * @see https://docs.kraken.com/api/docs/websocket-v1/cancelall
          * @description cancel all open orders
          * @param {string} symbol unified market symbol, only orders in the market of this symbol are cancelled when symbol is not undefined
          * @param {object} [params] extra parameters specific to the exchange API endpoint
@@ -282,7 +287,7 @@ export default class kraken extends krakenRest {
         const url = this.urls['api']['ws']['private'];
         const requestId = this.requestId ();
         const messageHash = requestId;
-        const request = {
+        const request: Dict = {
             'event': 'cancelAll',
             'token': token,
             'reqid': requestId,
@@ -458,7 +463,7 @@ export default class kraken extends krakenRest {
         const messageHash = name + ':' + wsName;
         const url = this.urls['api']['ws']['public'];
         const requestId = this.requestId ();
-        const subscribe = {
+        const subscribe: Dict = {
             'event': 'subscribe',
             'reqid': requestId,
             'pair': [
@@ -477,6 +482,7 @@ export default class kraken extends krakenRest {
          * @method
          * @name kraken#watchTicker
          * @description watches a price ticker, a statistical calculation with the information calculated over the past 24 hours for a specific market
+         * @see https://docs.kraken.com/api/docs/websocket-v1/ticker
          * @param {string} symbol unified symbol of the market to fetch the ticker for
          * @param {object} [params] extra parameters specific to the exchange API endpoint
          * @returns {object} a [ticker structure]{@link https://docs.ccxt.com/#/?id=ticker-structure}
@@ -492,6 +498,7 @@ export default class kraken extends krakenRest {
          * @method
          * @name kraken#watchTickers
          * @description watches a price ticker, a statistical calculation with the information calculated over the past 24 hours for a specific market
+         * @see https://docs.kraken.com/api/docs/websocket-v1/ticker
          * @param {string} symbol unified symbol of the market to fetch the ticker for
          * @param {object} [params] extra parameters specific to the exchange API endpoint
          * @returns {object} a [ticker structure]{@link https://docs.ccxt.com/#/?id=ticker-structure}
@@ -500,7 +507,7 @@ export default class kraken extends krakenRest {
         symbols = this.marketSymbols (symbols, undefined, false);
         const ticker = await this.watchMultiHelper ('ticker', 'ticker', symbols, undefined, params);
         if (this.newUpdates) {
-            const result = {};
+            const result: Dict = {};
             result[ticker['symbol']] = ticker;
             return result;
         }
@@ -512,7 +519,7 @@ export default class kraken extends krakenRest {
          * @method
          * @name kraken#watchTrades
          * @description get the list of most recent trades for a particular symbol
-         * @see https://docs.kraken.com/websockets/#message-trade
+         * @see https://docs.kraken.com/api/docs/websocket-v1/trade
          * @param {string} symbol unified symbol of the market to fetch trades for
          * @param {int} [since] timestamp in ms of the earliest trade to fetch
          * @param {int} [limit] the maximum amount of trades to fetch
@@ -526,7 +533,7 @@ export default class kraken extends krakenRest {
         /**
          * @method
          * @name kraken#watchTradesForSymbols
-         * @see https://docs.kraken.com/websockets/#message-trade
+         * @see https://docs.kraken.com/api/docs/websocket-v1/trade
          * @description get the list of most recent trades for a list of symbols
          * @param {string[]} symbols unified symbol of the market to fetch trades for
          * @param {int} [since] timestamp in ms of the earliest trade to fetch
@@ -548,7 +555,7 @@ export default class kraken extends krakenRest {
          * @method
          * @name kraken#watchOrderBook
          * @description watches information on open orders with bid (buy) and ask (sell) prices, volumes and other data
-         * @see https://docs.kraken.com/websockets/#message-book
+         * @see https://docs.kraken.com/api/docs/websocket-v1/book
          * @param {string} symbol unified symbol of the market to fetch the order book for
          * @param {int} [limit] the maximum amount of order book entries to return
          * @param {object} [params] extra parameters specific to the exchange API endpoint
@@ -562,13 +569,13 @@ export default class kraken extends krakenRest {
          * @method
          * @name kraken#watchOrderBookForSymbols
          * @description watches information on open orders with bid (buy) and ask (sell) prices, volumes and other data
-         * @see https://docs.kraken.com/websockets/#message-book
+         * @see https://docs.kraken.com/api/docs/websocket-v1/book
          * @param {string[]} symbols unified array of symbols
          * @param {int} [limit] the maximum amount of order book entries to return
          * @param {object} [params] extra parameters specific to the exchange API endpoint
          * @returns {object} A dictionary of [order book structures]{@link https://docs.ccxt.com/#/?id=order-book-structure} indexed by market symbols
          */
-        const request = {};
+        const request: Dict = {};
         if (limit !== undefined) {
             if (this.inArray (limit, [ 10, 25, 100, 500, 1000 ])) {
                 request['subscription'] = {
@@ -587,6 +594,7 @@ export default class kraken extends krakenRest {
          * @method
          * @name kraken#watchOHLCV
          * @description watches historical candlestick data containing the open, high, low, and close price, and the volume of a market
+         * @see https://docs.kraken.com/api/docs/websocket-v1/ohlc
          * @param {string} symbol unified symbol of the market to fetch OHLCV data for
          * @param {string} timeframe the length of time each candle represents
          * @param {int} [since] timestamp in ms of the earliest candle to fetch
@@ -602,7 +610,7 @@ export default class kraken extends krakenRest {
         const messageHash = name + ':' + timeframe + ':' + wsName;
         const url = this.urls['api']['ws']['public'];
         const requestId = this.requestId ();
-        const subscribe = {
+        const subscribe: Dict = {
             'event': 'subscribe',
             'reqid': requestId,
             'pair': [
@@ -717,7 +725,7 @@ export default class kraken extends krakenRest {
             // todo get depth from marketsByWsName
             this.orderbooks[symbol] = this.orderBook ({}, depth);
             const orderbook = this.orderbooks[symbol];
-            const sides = {
+            const sides: Dict = {
                 'as': 'asks',
                 'bs': 'bids',
             };
@@ -765,7 +773,7 @@ export default class kraken extends krakenRest {
             }
             // don't remove this line or I will poop on your face
             orderbook.limit ();
-            const checksum = this.safeBool (this.options, 'checksum', true);
+            const checksum = this.handleOption ('watchOrderBook', 'checksum', true);
             if (checksum) {
                 const priceString = this.safeString (example, 0);
                 const amountString = this.safeString (example, 1);
@@ -787,7 +795,7 @@ export default class kraken extends krakenRest {
                 const payload = payloadArray.join ('');
                 const localChecksum = this.crc32 (payload, false);
                 if (localChecksum !== c) {
-                    const error = new InvalidNonce (this.id + ' invalid checksum');
+                    const error = new ChecksumError (this.id + ' ' + this.orderbookChecksumMessage (symbol));
                     delete client.subscriptions[messageHash];
                     delete this.orderbooks[symbol];
                     client.reject (error, messageHash);
@@ -880,7 +888,7 @@ export default class kraken extends krakenRest {
         }
         const url = this.urls['api']['ws']['private'];
         const requestId = this.requestId ();
-        const subscribe = {
+        const subscribe: Dict = {
             'event': 'subscribe',
             'reqid': requestId,
             'subscription': {
@@ -901,11 +909,12 @@ export default class kraken extends krakenRest {
          * @method
          * @name kraken#watchMyTrades
          * @description watches information on multiple trades made by the user
+         * @see https://docs.kraken.com/api/docs/websocket-v1/owntrades
          * @param {string} symbol unified market symbol of the market trades were made in
          * @param {int} [since] the earliest time in ms to fetch trades for
          * @param {int} [limit] the maximum number of trade structures to retrieve
          * @param {object} [params] extra parameters specific to the exchange API endpoint
-         * @returns {object[]} a list of [trade structures]{@link https://docs.ccxt.com/#/?id=trade-structure
+         * @returns {object[]} a list of [trade structures]{@link https://docs.ccxt.com/#/?id=trade-structure}
          */
         return await this.watchPrivate ('ownTrades', symbol, since, limit, params);
     }
@@ -957,7 +966,7 @@ export default class kraken extends krakenRest {
                 this.myTrades = new ArrayCache (limit);
             }
             const stored = this.myTrades;
-            const symbols = {};
+            const symbols: Dict = {};
             for (let i = 0; i < allTrades.length; i++) {
                 const trades = this.safeValue (allTrades, i, {});
                 const ids = Object.keys (trades);
@@ -1064,7 +1073,7 @@ export default class kraken extends krakenRest {
         /**
          * @method
          * @name kraken#watchOrders
-         * @see https://docs.kraken.com/websockets/#message-openOrders
+         * @see https://docs.kraken.com/api/docs/websocket-v1/openorders
          * @description watches information on multiple orders made by the user
          * @param {string} symbol unified market symbol of the market orders were made in
          * @param {int} [since] the earliest time in ms to fetch orders for
@@ -1161,7 +1170,7 @@ export default class kraken extends krakenRest {
                 this.orders = new ArrayCacheBySymbolById (limit);
             }
             const stored = this.orders;
-            const symbols = {};
+            const symbols: Dict = {};
             for (let i = 0; i < allOrders.length; i++) {
                 const orders = this.safeValue (allOrders, i, {});
                 const ids = Object.keys (orders);
@@ -1343,7 +1352,7 @@ export default class kraken extends krakenRest {
             const wsMarketId = this.safeString (markets[i]['info'], 'wsname');
             wsMarketIds.push (wsMarketId);
         }
-        const request = {
+        const request: Dict = {
             'event': 'subscribe',
             'reqid': this.requestId (),
             'pair': wsMarketIds,
@@ -1353,6 +1362,73 @@ export default class kraken extends krakenRest {
         };
         const url = this.urls['api']['ws']['public'];
         return await this.watchMultiple (url, messageHashes, this.deepExtend (request, params), messageHashes, subscriptionArgs);
+    }
+
+    async watchBalance (params = {}): Promise<Balances> {
+        /**
+         * @method
+         * @name kraken#watchBalance
+         * @description watch balance and get the amount of funds available for trading or funds locked in orders
+         * @see https://docs.kraken.com/api/docs/websocket-v2/balances
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object} a [balance structure]{@link https://docs.ccxt.com/#/?id=balance-structure}
+         */
+        await this.loadMarkets ();
+        const token = await this.authenticate ();
+        const messageHash = 'balances';
+        const url = this.urls['api']['ws']['privateV2'];
+        const requestId = this.requestId ();
+        const subscribe: Dict = {
+            'method': 'subscribe',
+            'req_id': requestId,
+            'params': {
+                'channel': 'balances',
+                'token': token,
+            },
+        };
+        const request = this.deepExtend (subscribe, params);
+        return await this.watch (url, messageHash, request, messageHash);
+    }
+
+    handleBalance (client: Client, message) {
+        //
+        //     {
+        //         "channel": "balances",
+        //         "data": [
+        //             {
+        //                 "asset": "BTC",
+        //                 "asset_class": "currency",
+        //                 "balance": 1.2,
+        //                 "wallets": [
+        //                     {
+        //                         "type": "spot",
+        //                         "id": "main",
+        //                         "balance": 1.2
+        //                     }
+        //                 ]
+        //             }
+        //         ],
+        //         "type": "snapshot",
+        //         "sequence": 1
+        //     }
+        //
+        const data = this.safeList (message, 'data', []);
+        const result: Dict = { 'info': message };
+        for (let i = 0; i < data.length; i++) {
+            const currencyId = this.safeString (data[i], 'asset');
+            const code = this.safeCurrencyCode (currencyId);
+            const account = this.account ();
+            const eq = this.safeString (data[i], 'balance');
+            account['total'] = eq;
+            result[code] = account;
+        }
+        const type = 'spot';
+        const balance = this.safeBalance (result);
+        const oldBalance = this.safeValue (this.balance, type, {});
+        const newBalance = this.deepExtend (oldBalance, balance);
+        this.balance[type] = this.safeBalance (newBalance);
+        const channel = this.safeString (message, 'channel');
+        client.resolve (this.balance[type], channel);
     }
 
     getMessageHash (unifiedElementName: string, subChannelName: Str = undefined, symbol: Str = undefined) {
@@ -1443,7 +1519,7 @@ export default class kraken extends krakenRest {
             const messageLength = message.length;
             const channelName = this.safeString (message, messageLength - 2);
             const name = this.safeString (info, 'name');
-            const methods = {
+            const methods: Dict = {
                 // public
                 'book': this.handleOrderBook,
                 'ohlc': this.handleOHLCV,
@@ -1458,9 +1534,19 @@ export default class kraken extends krakenRest {
                 method.call (this, client, message, subscription);
             }
         } else {
+            const channel = this.safeString (message, 'channel');
+            if (channel !== undefined) {
+                const methods: Dict = {
+                    'balances': this.handleBalance,
+                };
+                const method = this.safeValue (methods, channel);
+                if (method !== undefined) {
+                    method.call (this, client, message);
+                }
+            }
             if (this.handleErrorMessage (client, message)) {
                 const event = this.safeString (message, 'event');
-                const methods = {
+                const methods: Dict = {
                     'heartbeat': this.handleHeartbeat,
                     'systemStatus': this.handleSystemStatus,
                     'subscriptionStatus': this.handleSubscriptionStatus,

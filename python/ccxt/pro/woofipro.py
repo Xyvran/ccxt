@@ -26,7 +26,9 @@ class woofipro(ccxt.async_support.woofipro):
                 'watchOrders': True,
                 'watchTicker': True,
                 'watchTickers': True,
+                'watchBidsAsks': True,
                 'watchTrades': True,
+                'watchTradesForSymbols': False,
                 'watchPositions': True,
             },
             'urls': {
@@ -84,7 +86,7 @@ class woofipro(ccxt.async_support.woofipro):
             id = self.accountId
         url = self.urls['api']['ws']['public'] + '/' + id
         requestId = self.request_id(url)
-        subscribe = {
+        subscribe: dict = {
             'id': requestId,
         }
         request = self.extend(subscribe, message)
@@ -103,7 +105,7 @@ class woofipro(ccxt.async_support.woofipro):
         name = 'orderbook'
         market = self.market(symbol)
         topic = market['id'] + '@' + name
-        request = {
+        request: dict = {
             'event': 'subscribe',
             'topic': topic,
         }
@@ -159,7 +161,7 @@ class woofipro(ccxt.async_support.woofipro):
         market = self.market(symbol)
         symbol = market['symbol']
         topic = market['id'] + '@' + name
-        request = {
+        request: dict = {
             'event': 'subscribe',
             'topic': topic,
         }
@@ -243,7 +245,7 @@ class woofipro(ccxt.async_support.woofipro):
         symbols = self.market_symbols(symbols)
         name = 'tickers'
         topic = name
-        request = {
+        request: dict = {
             'event': 'subscribe',
             'topic': topic,
         }
@@ -283,6 +285,68 @@ class woofipro(ccxt.async_support.woofipro):
             result.append(ticker)
         client.resolve(result, topic)
 
+    async def watch_bids_asks(self, symbols: Strings = None, params={}) -> Tickers:
+        """
+        :see: https://orderly.network/docs/build-on-evm/evm-api/websocket-api/public/bbos
+        watches best bid & ask for symbols
+        :param str[] symbols: unified symbol of the market to fetch the ticker for
+        :param dict [params]: extra parameters specific to the exchange API endpoint
+        :returns dict: a `ticker structure <https://docs.ccxt.com/#/?id=ticker-structure>`
+        """
+        await self.load_markets()
+        symbols = self.market_symbols(symbols)
+        name = 'bbos'
+        topic = name
+        request: dict = {
+            'event': 'subscribe',
+            'topic': topic,
+        }
+        message = self.extend(request, params)
+        tickers = await self.watch_public(topic, message)
+        return self.filter_by_array(tickers, 'symbol', symbols)
+
+    def handle_bid_ask(self, client: Client, message):
+        #
+        #     {
+        #       "topic": "bbos",
+        #       "ts": 1726212495000,
+        #       "data": [
+        #         {
+        #           "symbol": "PERP_WOO_USDC",
+        #           "ask": 0.16570,
+        #           "askSize": 4224,
+        #           "bid": 0.16553,
+        #           "bidSize": 6645
+        #         }
+        #       ]
+        #     }
+        #
+        topic = self.safe_string(message, 'topic')
+        data = self.safe_list(message, 'data', [])
+        timestamp = self.safe_integer(message, 'ts')
+        result = []
+        for i in range(0, len(data)):
+            ticker = self.parse_ws_bid_ask(self.extend(data[i], {'ts': timestamp}))
+            self.tickers[ticker['symbol']] = ticker
+            result.append(ticker)
+        client.resolve(result, topic)
+
+    def parse_ws_bid_ask(self, ticker, market=None):
+        marketId = self.safe_string(ticker, 'symbol')
+        market = self.safe_market(marketId, market)
+        symbol = self.safe_string(market, 'symbol')
+        timestamp = self.safe_integer(ticker, 'ts')
+        return self.safe_ticker({
+            'symbol': symbol,
+            'timestamp': timestamp,
+            'datetime': self.iso8601(timestamp),
+            'ask': self.safe_string(ticker, 'ask'),
+            'askVolume': self.safe_string(ticker, 'askSize'),
+            'bid': self.safe_string(ticker, 'bid'),
+            'bidVolume': self.safe_string(ticker, 'bidSize'),
+            'info': ticker,
+        }, market)
+
     async def watch_ohlcv(self, symbol: str, timeframe='1m', since: Int = None, limit: Int = None, params={}) -> List[list]:
         """
         watches historical candlestick data containing the open, high, low, and close price, and the volume of a market
@@ -301,7 +365,7 @@ class woofipro(ccxt.async_support.woofipro):
         interval = self.safe_string(self.timeframes, timeframe, timeframe)
         name = 'kline'
         topic = market['id'] + '@' + name + '_' + interval
-        request = {
+        request: dict = {
             'event': 'subscribe',
             'topic': topic,
         }
@@ -363,13 +427,13 @@ class woofipro(ccxt.async_support.woofipro):
         :param int [since]: the earliest time in ms to fetch trades for
         :param int [limit]: the maximum number of trade structures to retrieve
         :param dict [params]: extra parameters specific to the exchange API endpoint
-        :returns dict[]: a list of [trade structures]{@link https://docs.ccxt.com/#/?id=trade-structure
+        :returns dict[]: a list of `trade structures <https://docs.ccxt.com/#/?id=trade-structure>`
         """
         await self.load_markets()
         market = self.market(symbol)
         symbol = market['symbol']
         topic = market['id'] + '@trade'
-        request = {
+        request: dict = {
             'event': 'subscribe',
             'topic': topic,
         }
@@ -517,7 +581,7 @@ class woofipro(ccxt.async_support.woofipro):
                 parts = secret.split('ed25519:')
                 secret = parts[1]
             signature = self.eddsa(self.encode(auth), self.base58_to_binary(secret), 'ed25519')
-            request = {
+            request: dict = {
                 'event': event,
                 'params': {
                     'orderly_key': self.apiKey,
@@ -533,7 +597,7 @@ class woofipro(ccxt.async_support.woofipro):
         await self.authenticate(params)
         url = self.urls['api']['ws']['private'] + '/' + self.accountId
         requestId = self.request_id(url)
-        subscribe = {
+        subscribe: dict = {
             'id': requestId,
         }
         request = self.extend(subscribe, message)
@@ -543,7 +607,7 @@ class woofipro(ccxt.async_support.woofipro):
         await self.authenticate(params)
         url = self.urls['api']['ws']['private'] + '/' + self.accountId
         requestId = self.request_id(url)
-        subscribe = {
+        subscribe: dict = {
             'id': requestId,
         }
         request = self.extend(subscribe, message)
@@ -570,7 +634,7 @@ class woofipro(ccxt.async_support.woofipro):
             market = self.market(symbol)
             symbol = market['symbol']
             messageHash += ':' + symbol
-        request = {
+        request: dict = {
             'event': 'subscribe',
             'topic': topic,
         }
@@ -601,7 +665,7 @@ class woofipro(ccxt.async_support.woofipro):
             market = self.market(symbol)
             symbol = market['symbol']
             messageHash += ':' + symbol
-        request = {
+        request: dict = {
             'event': 'subscribe',
             'topic': topic,
         }
@@ -686,9 +750,10 @@ class woofipro(ccxt.async_support.woofipro):
             'cost': self.safe_string(order, 'totalFee'),
             'currency': self.safe_string(order, 'feeAsset'),
         }
+        priceString = self.safe_string(order, 'price')
         price = self.safe_number(order, 'price')
         avgPrice = self.safe_number(order, 'avgPrice')
-        if (price == 0) and (avgPrice is not None):
+        if Precise.string_eq(priceString, '0') and (avgPrice is not None):
             price = avgPrice
         amount = self.safe_string(order, 'quantity')
         side = self.safe_string_lower(order, 'side')
@@ -865,11 +930,11 @@ class woofipro(ccxt.async_support.woofipro):
         client = self.client(url)
         self.set_positions_cache(client, symbols)
         fetchPositionsSnapshot = self.handle_option('watchPositions', 'fetchPositionsSnapshot', True)
-        awaitPositionsSnapshot = self.safe_bool('watchPositions', 'awaitPositionsSnapshot', True)
+        awaitPositionsSnapshot = self.handle_option('watchPositions', 'awaitPositionsSnapshot', True)
         if fetchPositionsSnapshot and awaitPositionsSnapshot and self.positions is None:
             snapshot = await client.future('fetchPositionsSnapshot')
             return self.filter_by_symbols_since_limit(snapshot, symbols, since, limit, True)
-        request = {
+        request: dict = {
             'event': 'subscribe',
             'topic': 'position',
         }
@@ -1033,7 +1098,7 @@ class woofipro(ccxt.async_support.woofipro):
         await self.load_markets()
         topic = 'balance'
         messageHash = topic
-        request = {
+        request: dict = {
             'event': 'subscribe',
             'topic': topic,
         }
@@ -1117,7 +1182,7 @@ class woofipro(ccxt.async_support.woofipro):
     def handle_message(self, client: Client, message):
         if self.handle_error_message(client, message):
             return
-        methods = {
+        methods: dict = {
             'ping': self.handle_ping,
             'pong': self.handle_pong,
             'subscribe': self.handle_subscribe,
@@ -1131,6 +1196,7 @@ class woofipro(ccxt.async_support.woofipro):
             'algoexecutionreport': self.handle_order_update,
             'position': self.handle_positions,
             'balance': self.handle_balance,
+            'bbos': self.handle_bid_ask,
         }
         event = self.safe_string(message, 'event')
         method = self.safe_value(methods, event)

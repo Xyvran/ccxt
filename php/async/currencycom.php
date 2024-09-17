@@ -1018,7 +1018,7 @@ class currencycom extends Exchange {
         }) ();
     }
 
-    public function parse_trade($trade, ?array $market = null): array {
+    public function parse_trade(array $trade, ?array $market = null): array {
         //
         // fetchTrades (public aggregate trades)
         //
@@ -1135,7 +1135,7 @@ class currencycom extends Exchange {
         }) ();
     }
 
-    public function parse_order($order, ?array $market = null): array {
+    public function parse_order(array $order, ?array $market = null): array {
         //
         // createOrder
         //
@@ -1240,7 +1240,7 @@ class currencycom extends Exchange {
         ), $market);
     }
 
-    public function parse_order_status($status) {
+    public function parse_order_status(?string $status) {
         $statuses = array(
             'NEW' => 'open',
             'CREATED' => 'open',
@@ -1296,7 +1296,7 @@ class currencycom extends Exchange {
              * @param {string} $type 'market' or 'limit'
              * @param {string} $side 'buy' or 'sell'
              * @param {float} $amount how much of currency you want to trade in units of base currency
-             * @param {float} [$price] the $price at which the order is to be fullfilled, in units of the quote currency, ignored in $market orders
+             * @param {float} [$price] the $price at which the order is to be fulfilled, in units of the quote currency, ignored in $market orders
              * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {array} an ~@link https://docs.ccxt.com/#/?id=order-structure order structure~
              */
@@ -1653,7 +1653,7 @@ class currencycom extends Exchange {
         }) ();
     }
 
-    public function parse_transaction($transaction, ?array $currency = null): array {
+    public function parse_transaction(array $transaction, ?array $currency = null): array {
         //
         //    {
         //        "id" => "616769213",
@@ -1705,7 +1705,7 @@ class currencycom extends Exchange {
         );
     }
 
-    public function parse_transaction_status($status) {
+    public function parse_transaction_status(?string $status) {
         $statuses = array(
             'APPROVAL' => 'pending',
             'PROCESSED' => 'ok',
@@ -1721,14 +1721,14 @@ class currencycom extends Exchange {
         return $this->safe_string($types, $type, $type);
     }
 
-    public function fetch_ledger(?string $code = null, ?int $since = null, ?int $limit = null, $params = array ()) {
+    public function fetch_ledger(?string $code = null, ?int $since = null, ?int $limit = null, $params = array ()): PromiseInterface {
         return Async\async(function () use ($code, $since, $limit, $params) {
             /**
-             * fetch the history of changes, actions done by the user or operations that altered balance of the user
+             * fetch the history of changes, actions done by the user or operations that altered the balance of the user
              * @see https://apitradedoc.currency.com/swagger-ui.html#/rest-api/getLedgerUsingGET
-             * @param {string} $code unified $currency $code, default is null
+             * @param {string} [$code] unified $currency $code, default is null
              * @param {int} [$since] timestamp in ms of the earliest ledger entry, default is null
-             * @param {int} [$limit] max number of ledger entrys to return, default is null
+             * @param {int} [$limit] max number of ledger entries to return, default is null
              * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {array} a ~@link https://docs.ccxt.com/#/?id=ledger-structure ledger structure~
              */
@@ -1776,20 +1776,21 @@ class currencycom extends Exchange {
         }) ();
     }
 
-    public function parse_ledger_entry($item, ?array $currency = null) {
+    public function parse_ledger_entry(array $item, ?array $currency = null): array {
         $id = $this->safe_string($item, 'id');
         $amountString = $this->safe_string($item, 'amount');
         $amount = Precise::string_abs($amountString);
         $timestamp = $this->safe_integer($item, 'timestamp');
         $currencyId = $this->safe_string($item, 'currency');
         $code = $this->safe_currency_code($currencyId, $currency);
+        $currency = $this->safe_currency($currencyId, $currency);
         $feeCost = $this->safe_string($item, 'commission');
         $fee = null;
         if ($feeCost !== null) {
             $fee = array( 'currency' => $code, 'cost' => $feeCost );
         }
         $direction = Precise::string_lt($amountString, '0') ? 'out' : 'in';
-        $result = array(
+        return $this->safe_ledger_entry(array(
             'id' => $id,
             'timestamp' => $timestamp,
             'datetime' => $this->iso8601($timestamp),
@@ -1805,8 +1806,7 @@ class currencycom extends Exchange {
             'status' => $this->parse_ledger_entry_status($this->safe_string($item, 'status')),
             'fee' => $fee,
             'info' => $item,
-        );
-        return $result;
+        ), $currency);
     }
 
     public function parse_ledger_entry_status($status) {
@@ -1979,7 +1979,7 @@ class currencycom extends Exchange {
         }) ();
     }
 
-    public function parse_position($position, ?array $market = null) {
+    public function parse_position(array $position, ?array $market = null) {
         //
         //    {
         //        "accountId" => "109698017416453793",
@@ -2030,7 +2030,7 @@ class currencycom extends Exchange {
             'collateral' => null,
             'side' => $side,
             // 'realizedProfit' => $this->safe_number($position, 'rpl'),
-            'unrealizedProfit' => $unrealizedProfit,
+            'unrealizedPnl' => $unrealizedProfit,
             'leverage' => $leverage,
             'percentage' => null,
             'marginMode' => null,
@@ -2044,14 +2044,13 @@ class currencycom extends Exchange {
             'maintenanceMarginPercentage' => null,
             'marginRatio' => null,
             'id' => null,
-            'unrealizedPnl' => null,
             'hedged' => null,
             'stopLossPrice' => null,
             'takeProfitPrice' => null,
         ));
     }
 
-    public function handle_errors($httpCode, $reason, $url, $method, $headers, $body, $response, $requestHeaders, $requestBody) {
+    public function handle_errors(int $httpCode, string $reason, string $url, string $method, array $headers, string $body, $response, $requestHeaders, $requestBody) {
         if (($httpCode === 418) || ($httpCode === 429)) {
             throw new DDoSProtection($this->id . ' ' . (string) $httpCode . ' ' . $reason . ' ' . $body);
         }

@@ -372,7 +372,7 @@ class luno extends Exchange {
         return $this->parse_order_book($response, $market['symbol'], $timestamp, 'bids', 'asks', 'price', 'volume');
     }
 
-    public function parse_order_status($status) {
+    public function parse_order_status(?string $status) {
         $statuses = array(
             // todo add other $statuses
             'PENDING' => 'open',
@@ -380,7 +380,7 @@ class luno extends Exchange {
         return $this->safe_string($statuses, $status, $status);
     }
 
-    public function parse_order($order, ?array $market = null): array {
+    public function parse_order(array $order, ?array $market = null): array {
         //
         //     {
         //         "base" => "string",
@@ -614,7 +614,7 @@ class luno extends Exchange {
         return $this->parse_ticker($response, $market);
     }
 
-    public function parse_trade($trade, ?array $market = null): array {
+    public function parse_trade(array $trade, ?array $market = null): array {
         //
         // fetchTrades (public)
         //
@@ -894,7 +894,7 @@ class luno extends Exchange {
          * @param {string} $type 'market' or 'limit'
          * @param {string} $side 'buy' or 'sell'
          * @param {float} $amount how much of currency you want to trade in units of base currency
-         * @param {float} [$price] the $price at which the order is to be fullfilled, in units of the quote currency, ignored in $market orders
+         * @param {float} [$price] the $price at which the order is to be fulfilled, in units of the quote currency, ignored in $market orders
          * @param {array} [$params] extra parameters specific to the exchange API endpoint
          * @return {array} an ~@link https://docs.ccxt.com/#/?id=order-structure order structure~
          */
@@ -938,7 +938,15 @@ class luno extends Exchange {
         $request = array(
             'order_id' => $id,
         );
-        return $this->privatePostStoporder ($this->extend($request, $params));
+        $response = $this->privatePostStoporder ($this->extend($request, $params));
+        //
+        //    {
+        //        "success" => true
+        //    }
+        //
+        return $this->safe_order(array(
+            'info' => $response,
+        ));
     }
 
     public function fetch_ledger_by_entries(?string $code = null, $entry = null, $limit = null, $params = array ()) {
@@ -957,13 +965,13 @@ class luno extends Exchange {
         return $this->fetch_ledger($code, $since, $limit, $this->extend($request, $params));
     }
 
-    public function fetch_ledger(?string $code = null, ?int $since = null, ?int $limit = null, $params = array ()) {
+    public function fetch_ledger(?string $code = null, ?int $since = null, ?int $limit = null, $params = array ()): array {
         /**
-         * fetch the history of changes, actions done by the user or operations that altered balance of the user
+         * fetch the history of changes, actions done by the user or operations that altered the balance of the user
          * @see https://www.luno.com/en/developers/api#tag/Accounts/operation/ListTransactions
-         * @param {string} $code unified $currency $code, default is null
+         * @param {string} [$code] unified $currency $code, default is null
          * @param {int} [$since] timestamp in ms of the earliest ledger entry, default is null
-         * @param {int} [$limit] max number of ledger entrys to return, default is null
+         * @param {int} [$limit] max number of ledger $entries to return, default is null
          * @param {array} [$params] extra parameters specific to the exchange API endpoint
          * @return {array} a ~@link https://docs.ccxt.com/#/?$id=ledger-structure ledger structure~
          */
@@ -1043,13 +1051,14 @@ class luno extends Exchange {
         );
     }
 
-    public function parse_ledger_entry($entry, ?array $currency = null) {
+    public function parse_ledger_entry($entry, ?array $currency = null): array {
         // $details = $this->safe_value($entry, 'details', array());
         $id = $this->safe_string($entry, 'row_index');
         $account_id = $this->safe_string($entry, 'account_id');
         $timestamp = $this->safe_integer($entry, 'timestamp');
         $currencyId = $this->safe_string($entry, 'currency');
         $code = $this->safe_currency_code($currencyId, $currency);
+        $currency = $this->safe_currency($currencyId, $currency);
         $available_delta = $this->safe_string($entry, 'available_delta');
         $balance_delta = $this->safe_string($entry, 'balance_delta');
         $after = $this->safe_string($entry, 'balance');
@@ -1077,7 +1086,8 @@ class luno extends Exchange {
         } elseif (Precise::string_lt($balance_delta, '0') || Precise::string_lt($available_delta, '0')) {
             $direction = 'out';
         }
-        return array(
+        return $this->safe_ledger_entry(array(
+            'info' => $entry,
             'id' => $id,
             'direction' => $direction,
             'account' => $account_id,
@@ -1085,15 +1095,14 @@ class luno extends Exchange {
             'referenceAccount' => null,
             'type' => $type,
             'currency' => $code,
-            'amount' => $this->parse_number($amount),
+            'amount' => $this->parse_to_numeric($amount),
             'timestamp' => $timestamp,
             'datetime' => $this->iso8601($timestamp),
-            'before' => $this->parse_number($before),
-            'after' => $this->parse_number($after),
+            'before' => $this->parse_to_numeric($before),
+            'after' => $this->parse_to_numeric($after),
             'status' => $status,
             'fee' => null,
-            'info' => $entry,
-        );
+        ), $currency);
     }
 
     public function sign($path, $api = 'public', $method = 'GET', $params = array (), $headers = null, $body = null) {
@@ -1112,7 +1121,7 @@ class luno extends Exchange {
         return array( 'url' => $url, 'method' => $method, 'body' => $body, 'headers' => $headers );
     }
 
-    public function handle_errors($httpCode, $reason, $url, $method, $headers, $body, $response, $requestHeaders, $requestBody) {
+    public function handle_errors(int $httpCode, string $reason, string $url, string $method, array $headers, string $body, $response, $requestHeaders, $requestBody) {
         if ($response === null) {
             return null;
         }

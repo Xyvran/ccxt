@@ -22,6 +22,7 @@ class blockchaincom extends \ccxt\async\blockchaincom {
                 'watchTicker' => true,
                 'watchTickers' => false,
                 'watchTrades' => true,
+                'watchTradesForSymbols' => false,
                 'watchMyTrades' => false,
                 'watchOrders' => true,
                 'watchOrderBook' => true,
@@ -712,8 +713,8 @@ class blockchaincom extends \ccxt\async\blockchaincom {
             $snapshot = $this->parse_order_book($message, $symbol, $timestamp, 'bids', 'asks', 'px', 'qty', 'num');
             $orderbook->reset ($snapshot);
         } elseif ($event === 'updated') {
-            $asks = $this->safe_value($message, 'asks', array());
-            $bids = $this->safe_value($message, 'bids', array());
+            $asks = $this->safe_list($message, 'asks', array());
+            $bids = $this->safe_list($message, 'bids', array());
             $this->handle_deltas($orderbook['asks'], $asks);
             $this->handle_deltas($orderbook['bids'], $bids);
             $orderbook['timestamp'] = $timestamp;

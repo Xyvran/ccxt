@@ -291,6 +291,9 @@ public partial class bitget : Exchange
                             { "v2/spot/account/subaccount-assets", 2 },
                             { "v2/spot/account/bills", 2 },
                             { "v2/spot/account/transferRecords", 1 },
+                            { "v2/account/funding-assets", 2 },
+                            { "v2/account/bot-assets", 2 },
+                            { "v2/account/all-account-balance", 20 },
                             { "v2/spot/wallet/deposit-address", 2 },
                             { "v2/spot/wallet/deposit-records", 2 },
                             { "v2/spot/wallet/withdrawal-records", 2 },
@@ -461,7 +464,7 @@ public partial class bitget : Exchange
                             { "v2/mix/account/set-margin", 4 },
                             { "v2/mix/account/set-margin-mode", 4 },
                             { "v2/mix/account/set-position-mode", 4 },
-                            { "v2/mix/order/place-order", 20 },
+                            { "v2/mix/order/place-order", 2 },
                             { "v2/mix/order/click-backhand", 20 },
                             { "v2/mix/order/batch-place-order", 20 },
                             { "v2/mix/order/modify-order", 2 },
@@ -735,6 +738,7 @@ public partial class bitget : Exchange
                             { "v2/earn/loan/borrow-history", 2 },
                             { "v2/earn/loan/debts", 2 },
                             { "v2/earn/loan/reduces", 2 },
+                            { "v2/earn/account/assets", 2 },
                         } },
                         { "post", new Dictionary<string, object>() {
                             { "v2/earn/savings/subscribe", 2 },
@@ -1186,7 +1190,10 @@ public partial class bitget : Exchange
                     { "40712", typeof(InsufficientFunds) },
                     { "40713", typeof(ExchangeError) },
                     { "40714", typeof(ExchangeError) },
+                    { "40762", typeof(InsufficientFunds) },
                     { "40768", typeof(OrderNotFound) },
+                    { "40808", typeof(InvalidOrder) },
+                    { "41103", typeof(InvalidOrder) },
                     { "41114", typeof(OnMaintenance) },
                     { "43011", typeof(InvalidOrder) },
                     { "43012", typeof(InsufficientFunds) },
@@ -1262,8 +1269,10 @@ public partial class bitget : Exchange
             } },
             { "precisionMode", TICK_SIZE },
             { "commonCurrencies", new Dictionary<string, object>() {
-                { "JADE", "Jade Protocol" },
+                { "APX", "AstroPepeX" },
                 { "DEGEN", "DegenReborn" },
+                { "JADE", "Jade Protocol" },
+                { "OMNI", "omni" },
                 { "TONCOIN", "TON" },
             } },
             { "options", new Dictionary<string, object>() {
@@ -4177,7 +4186,7 @@ public partial class bitget : Exchange
         {
             // swap
             fee = new Dictionary<string, object>() {
-                { "cost", this.parseNumber(Precise.stringAbs(feeCostString)) },
+                { "cost", this.parseNumber(Precise.stringNeg(feeCostString)) },
                 { "currency", getValue(market, "settle") },
             };
         }
@@ -4197,7 +4206,7 @@ public partial class bitget : Exchange
                 }
             }
             fee = new Dictionary<string, object>() {
-                { "cost", this.parseNumber(Precise.stringAbs(this.safeString(feeObject, "totalFee"))) },
+                { "cost", this.parseNumber(Precise.stringNeg(this.safeString(feeObject, "totalFee"))) },
                 { "currency", this.safeCurrencyCode(this.safeString(feeObject, "feeCoinCode")) },
             };
         }
@@ -4318,7 +4327,7 @@ public partial class bitget : Exchange
         * @param {string} type 'market' or 'limit'
         * @param {string} side 'buy' or 'sell'
         * @param {float} amount how much you want to trade in units of the base currency
-        * @param {float} [price] the price at which the order is to be fullfilled, in units of the quote currency, ignored in market orders
+        * @param {float} [price] the price at which the order is to be fulfilled, in units of the quote currency, ignored in market orders
         * @param {object} [params] extra parameters specific to the exchange API endpoint
         * @param {float} [params.cost] *spot only* how much you want to trade in units of the quote currency, for market buy orders only
         * @param {float} [params.triggerPrice] *swap only* The price at which a trigger order is triggered at
@@ -4340,6 +4349,7 @@ public partial class bitget : Exchange
         * @param {string} [params.trailingTriggerPrice] *swap and future only* the price to trigger a trailing stop order, default uses the price argument
         * @param {string} [params.triggerType] *swap and future only* 'fill_price', 'mark_price' or 'index_price'
         * @param {boolean} [params.oneWayMode] *swap and future only* required to set this to true in one_way_mode and you can leave this as undefined in hedge_mode, can adjust the mode using the setPositionMode() method
+        * @param {bool} [params.reduceOnly] true or false whether the order is reduce-only
         * @returns {object} an [order structure]{@link https://docs.ccxt.com/#/?id=order-structure}
         */
         parameters ??= new Dictionary<string, object>();
@@ -4567,12 +4577,23 @@ public partial class bitget : Exchange
                 }
                 object marginModeRequest = ((bool) isTrue((isEqual(marginMode, "cross")))) ? "crossed" : "isolated";
                 ((IDictionary<string,object>)request)["marginMode"] = marginModeRequest;
-                object oneWayMode = this.safeBool(parameters, "oneWayMode", false);
-                parameters = this.omit(parameters, "oneWayMode");
+                object hedged = null;
+                var hedgedparametersVariable = this.handleParamBool(parameters, "hedged", false);
+                hedged = ((IList<object>)hedgedparametersVariable)[0];
+                parameters = ((IList<object>)hedgedparametersVariable)[1];
+                // backward compatibility for `oneWayMode`
+                object oneWayMode = null;
+                var oneWayModeparametersVariable = this.handleParamBool(parameters, "oneWayMode");
+                oneWayMode = ((IList<object>)oneWayModeparametersVariable)[0];
+                parameters = ((IList<object>)oneWayModeparametersVariable)[1];
+                if (isTrue(!isEqual(oneWayMode, null)))
+                {
+                    hedged = !isTrue(oneWayMode);
+                }
                 object requestSide = side;
                 if (isTrue(reduceOnly))
                 {
-                    if (isTrue(oneWayMode))
+                    if (!isTrue(hedged))
                     {
                         ((IDictionary<string,object>)request)["reduceOnly"] = "YES";
                     } else
@@ -4583,7 +4604,7 @@ public partial class bitget : Exchange
                     }
                 } else
                 {
-                    if (!isTrue(oneWayMode))
+                    if (isTrue(hedged))
                     {
                         ((IDictionary<string,object>)request)["tradeSide"] = "Open";
                     }
@@ -4639,7 +4660,7 @@ public partial class bitget : Exchange
             if (isTrue(!isEqual(marginMode, null)))
             {
                 ((IDictionary<string,object>)request)["loanType"] = "normal";
-                if (isTrue(isTrue(isTrue(createMarketBuyOrderRequiresPrice) && isTrue(isMarketOrder)) && isTrue((isEqual(side, "buy")))))
+                if (isTrue(isTrue(isMarketOrder) && isTrue((isEqual(side, "buy")))))
                 {
                     ((IDictionary<string,object>)request)["quoteSize"] = quantity;
                 } else
@@ -4811,7 +4832,7 @@ public partial class bitget : Exchange
         * @param {string} type 'market' or 'limit'
         * @param {string} side 'buy' or 'sell'
         * @param {float} amount how much you want to trade in units of the base currency
-        * @param {float} [price] the price at which the order is to be fullfilled, in units of the base currency, ignored in market orders
+        * @param {float} [price] the price at which the order is to be fulfilled, in units of the quote currency, ignored in market orders
         * @param {object} [params] extra parameters specific to the exchange API endpoint
         * @param {float} [params.triggerPrice] the price that a trigger order is triggered at
         * @param {float} [params.stopLossPrice] *swap only* The price at which a stop loss order is triggered at
@@ -5335,6 +5356,25 @@ public partial class bitget : Exchange
                 {
                     response = await this.privateSpotPostV2SpotTradeCancelSymbolOrder(this.extend(request, parameters));
                 }
+                //
+                //     {
+                //         "code": "00000",
+                //         "msg": "success",
+                //         "requestTime": 1700716953996,
+                //         "data": {
+                //             "symbol": "BTCUSDT"
+                //         }
+                //     }
+                //
+                object timestamp = this.safeInteger(response, "requestTime");
+                object responseData = this.safeDict(response, "data");
+                object marketId = this.safeString(responseData, "symbol");
+                return new List<object> {this.safeOrder(new Dictionary<string, object>() {
+    { "info", response },
+    { "symbol", this.safeSymbol(marketId, null, null, "spot") },
+    { "timestamp", timestamp },
+    { "datetime", this.iso8601(timestamp) },
+})};
             }
         } else
         {
@@ -5351,53 +5391,11 @@ public partial class bitget : Exchange
                 response = await this.privateMixPostV2MixOrderBatchCancelOrders(this.extend(request, parameters));
             }
         }
-        //
-        // spot
-        //
-        //     {
-        //         "code": "00000",
-        //         "msg": "success",
-        //         "requestTime": 1700716953996,
-        //         "data": {
-        //             "symbol": "BTCUSDT"
-        //         }
-        //     }
-        //
-        // swap
-        //
-        //     {
-        //         "code": "00000",
-        //         "msg": "success",
-        //         "requestTime": "1680008815965",
-        //         "data": {
-        //             "successList": [
-        //                 {
-        //                     "orderId": "1024598257429823488",
-        //                     "clientOid": "876493ce-c287-4bfc-9f4a-8b1905881313"
-        //                 },
-        //             ],
-        //             "failureList": []
-        //         }
-        //     }
-        //
-        // spot margin
-        //
-        //     {
-        //         "code": "00000",
-        //         "msg": "success",
-        //         "requestTime": 1700717155622,
-        //         "data": {
-        //             "resultList": [
-        //                 {
-        //                     "orderId": "1111453253721796609",
-        //                     "clientOid": "2ae7fc8a4ff949b6b60d770ca3950e2d"
-        //                 },
-        //             ],
-        //             "failure": []
-        //         }
-        //     }
-        //
-        return response;
+        object data = this.safeDict(response, "data");
+        object resultList = this.safeList2(data, "resultList", "successList");
+        object failureList = this.safeList2(data, "failure", "failureList");
+        object responseList = this.arrayConcat(resultList, failureList);
+        return this.parseOrders(responseList);
     }
 
     public async override Task<object> fetchOrder(object id, object symbol = null, object parameters = null)
@@ -5408,6 +5406,7 @@ public partial class bitget : Exchange
         * @description fetches information on an order made by the user
         * @see https://www.bitget.com/api-doc/spot/trade/Get-Order-Info
         * @see https://www.bitget.com/api-doc/contract/trade/Get-Order-Details
+        * @param {string} id the order id
         * @param {string} symbol unified symbol of the market the order was made in
         * @param {object} [params] extra parameters specific to the exchange API endpoint
         * @returns {object} An [order structure]{@link https://docs.ccxt.com/#/?id=order-structure}
@@ -5520,9 +5519,12 @@ public partial class bitget : Exchange
             response = parseJson(response);
         }
         object data = this.safeDict(response, "data");
-        if (isTrue(isTrue((!isEqual(data, null))) && !isTrue(((data is IList<object>) || (data.GetType().IsGenericType && data.GetType().GetGenericTypeDefinition().IsAssignableFrom(typeof(List<>)))))))
+        if (isTrue((!isEqual(data, null))))
         {
-            return this.parseOrder(data, market);
+            if (!isTrue(((data is IList<object>) || (data.GetType().IsGenericType && data.GetType().GetGenericTypeDefinition().IsAssignableFrom(typeof(List<>))))))
+            {
+                return this.parseOrder(data, market);
+            }
         }
         object dataList = this.safeList(response, "data", new List<object>() {});
         object first = this.safeDict(dataList, 0, new Dictionary<string, object>() {});
@@ -6279,12 +6281,12 @@ public partial class bitget : Exchange
         /**
         * @method
         * @name bitget#fetchLedger
+        * @description fetch the history of changes, actions done by the user or operations that altered the balance of the user
         * @see https://www.bitget.com/api-doc/spot/account/Get-Account-Bills
         * @see https://www.bitget.com/api-doc/contract/account/Get-Account-Bill
-        * @description fetch the history of changes, actions done by the user or operations that altered balance of the user
-        * @param {string} code unified currency code, default is undefined
+        * @param {string} [code] unified currency code, default is undefined
         * @param {int} [since] timestamp in ms of the earliest ledger entry, default is undefined
-        * @param {int} [limit] max number of ledger entrys to return, default is undefined
+        * @param {int} [limit] max number of ledger entries to return, default is undefined
         * @param {object} [params] extra parameters specific to the exchange API endpoint
         * @param {int} [params.until] end time in ms
         * @param {string} [params.symbol] *contract only* unified market symbol
@@ -6445,6 +6447,7 @@ public partial class bitget : Exchange
         //
         object currencyId = this.safeString(item, "coin");
         object code = this.safeCurrencyCode(currencyId, currency);
+        currency = this.safeCurrency(currencyId, currency);
         object timestamp = this.safeInteger(item, "cTime");
         object after = this.safeNumber(item, "balance");
         object fee = this.safeNumber2(item, "fees", "fee");
@@ -6455,7 +6458,7 @@ public partial class bitget : Exchange
         {
             direction = "out";
         }
-        return new Dictionary<string, object>() {
+        return this.safeLedgerEntry(new Dictionary<string, object>() {
             { "info", item },
             { "id", this.safeString(item, "billId") },
             { "timestamp", timestamp },
@@ -6470,8 +6473,11 @@ public partial class bitget : Exchange
             { "before", null },
             { "after", after },
             { "status", null },
-            { "fee", fee },
-        };
+            { "fee", new Dictionary<string, object>() {
+                { "currency", code },
+                { "cost", fee },
+            } },
+        }, currency);
     }
 
     public virtual object parseLedgerType(object type)

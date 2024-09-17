@@ -223,7 +223,7 @@ class bitstamp extends Exchange {
                         'uni_withdrawal/' => 1,
                         'uni_address/' => 1,
                         'yfi_withdrawal/' => 1,
-                        'yfi_address' => 1,
+                        'yfi_address/' => 1,
                         'audio_withdrawal/' => 1,
                         'audio_address/' => 1,
                         'crv_withdrawal/' => 1,
@@ -232,7 +232,7 @@ class bitstamp extends Exchange {
                         'algo_address/' => 1,
                         'comp_withdrawal/' => 1,
                         'comp_address/' => 1,
-                        'grt_withdrawal' => 1,
+                        'grt_withdrawal/' => 1,
                         'grt_address/' => 1,
                         'usdt_withdrawal/' => 1,
                         'usdt_address/' => 1,
@@ -370,6 +370,22 @@ class bitstamp extends Exchange {
                         'vchf_address/' => 1,
                         'veur_withdrawal/' => 1,
                         'veur_address/' => 1,
+                        'truf_withdrawal/' => 1,
+                        'truf_address/' => 1,
+                        'wif_withdrawal/' => 1,
+                        'wif_address/' => 1,
+                        'smt_withdrawal/' => 1,
+                        'smt_address/' => 1,
+                        'sui_withdrawal/' => 1,
+                        'sui_address/' => 1,
+                        'jup_withdrawal/' => 1,
+                        'jup_address/' => 1,
+                        'ondo_withdrawal/' => 1,
+                        'ondo_address/' => 1,
+                        'boba_withdrawal/' => 1,
+                        'boba_address/' => 1,
+                        'pyth_withdrawal/' => 1,
+                        'pyth_address/' => 1,
                     ),
                 ),
             ),
@@ -377,46 +393,34 @@ class bitstamp extends Exchange {
                 'trading' => array(
                     'tierBased' => true,
                     'percentage' => true,
-                    'taker' => $this->parse_number('0.005'),
-                    'maker' => $this->parse_number('0.005'),
+                    'taker' => $this->parse_number('0.004'),
+                    'maker' => $this->parse_number('0.004'),
                     'tiers' => array(
                         'taker' => array(
-                            array( $this->parse_number('0'), $this->parse_number('0.005') ),
-                            array( $this->parse_number('20000'), $this->parse_number('0.0025') ),
-                            array( $this->parse_number('100000'), $this->parse_number('0.0024') ),
-                            array( $this->parse_number('200000'), $this->parse_number('0.0022') ),
-                            array( $this->parse_number('400000'), $this->parse_number('0.0020') ),
-                            array( $this->parse_number('600000'), $this->parse_number('0.0015') ),
-                            array( $this->parse_number('1000000'), $this->parse_number('0.0014') ),
-                            array( $this->parse_number('2000000'), $this->parse_number('0.0013') ),
-                            array( $this->parse_number('4000000'), $this->parse_number('0.0012') ),
-                            array( $this->parse_number('20000000'), $this->parse_number('0.0011') ),
-                            array( $this->parse_number('50000000'), $this->parse_number('0.0010') ),
-                            array( $this->parse_number('100000000'), $this->parse_number('0.0007') ),
-                            array( $this->parse_number('500000000'), $this->parse_number('0.0005') ),
-                            array( $this->parse_number('2000000000'), $this->parse_number('0.0003') ),
-                            array( $this->parse_number('6000000000'), $this->parse_number('0.0001') ),
-                            array( $this->parse_number('20000000000'), $this->parse_number('0.00005') ),
-                            array( $this->parse_number('20000000001'), $this->parse_number('0') ),
+                            array( $this->parse_number('0'), $this->parse_number('0.004') ),
+                            array( $this->parse_number('10000'), $this->parse_number('0.003') ),
+                            array( $this->parse_number('100000'), $this->parse_number('0.002') ),
+                            array( $this->parse_number('500000'), $this->parse_number('0.0018') ),
+                            array( $this->parse_number('1500000'), $this->parse_number('0.0016') ),
+                            array( $this->parse_number('5000000'), $this->parse_number('0.0012') ),
+                            array( $this->parse_number('20000000'), $this->parse_number('0.001') ),
+                            array( $this->parse_number('50000000'), $this->parse_number('0.0008') ),
+                            array( $this->parse_number('100000000'), $this->parse_number('0.0006') ),
+                            array( $this->parse_number('250000000'), $this->parse_number('0.0005') ),
+                            array( $this->parse_number('1000000000'), $this->parse_number('0.0003') ),
                         ),
                         'maker' => array(
-                            array( $this->parse_number('0'), $this->parse_number('0.005') ),
-                            array( $this->parse_number('20000'), $this->parse_number('0.0025') ),
-                            array( $this->parse_number('100000'), $this->parse_number('0.0024') ),
-                            array( $this->parse_number('200000'), $this->parse_number('0.0022') ),
-                            array( $this->parse_number('400000'), $this->parse_number('0.0020') ),
-                            array( $this->parse_number('600000'), $this->parse_number('0.0015') ),
-                            array( $this->parse_number('1000000'), $this->parse_number('0.0014') ),
-                            array( $this->parse_number('2000000'), $this->parse_number('0.0013') ),
-                            array( $this->parse_number('4000000'), $this->parse_number('0.0012') ),
-                            array( $this->parse_number('20000000'), $this->parse_number('0.0011') ),
-                            array( $this->parse_number('50000000'), $this->parse_number('0.0010') ),
-                            array( $this->parse_number('100000000'), $this->parse_number('0.0007') ),
-                            array( $this->parse_number('500000000'), $this->parse_number('0.0005') ),
-                            array( $this->parse_number('2000000000'), $this->parse_number('0.0003') ),
-                            array( $this->parse_number('6000000000'), $this->parse_number('0.0001') ),
-                            array( $this->parse_number('20000000000'), $this->parse_number('0.00005') ),
-                            array( $this->parse_number('20000000001'), $this->parse_number('0') ),
+                            array( $this->parse_number('0'), $this->parse_number('0.003') ),
+                            array( $this->parse_number('10000'), $this->parse_number('0.002') ),
+                            array( $this->parse_number('100000'), $this->parse_number('0.001') ),
+                            array( $this->parse_number('500000'), $this->parse_number('0.0008') ),
+                            array( $this->parse_number('1500000'), $this->parse_number('0.0006') ),
+                            array( $this->parse_number('5000000'), $this->parse_number('0.0003') ),
+                            array( $this->parse_number('20000000'), $this->parse_number('0.002') ),
+                            array( $this->parse_number('50000000'), $this->parse_number('0.0001') ),
+                            array( $this->parse_number('100000000'), $this->parse_number('0') ),
+                            array( $this->parse_number('250000000'), $this->parse_number('0') ),
+                            array( $this->parse_number('1000000000'), $this->parse_number('0') ),
                         ),
                     ),
                 ),
@@ -912,7 +916,7 @@ class bitstamp extends Exchange {
         return null;
     }
 
-    public function parse_trade($trade, ?array $market = null): array {
+    public function parse_trade(array $trade, ?array $market = null): array {
         //
         // fetchTrades (public)
         //
@@ -1242,7 +1246,7 @@ class bitstamp extends Exchange {
         }) ();
     }
 
-    public function parse_trading_fee($fee, ?array $market = null): array {
+    public function parse_trading_fee(array $fee, ?array $market = null): array {
         $marketId = $this->safe_string($fee, 'market');
         $fees = $this->safe_dict($fee, 'fees', array());
         return array(
@@ -1405,7 +1409,7 @@ class bitstamp extends Exchange {
              * @param {string} $type 'market' or 'limit'
              * @param {string} $side 'buy' or 'sell'
              * @param {float} $amount how much of currency you want to trade in units of base currency
-             * @param {float} [$price] the $price at which the $order is to be fullfilled, in units of the quote currency, ignored in $market orders
+             * @param {float} [$price] the $price at which the $order is to be fulfilled, in units of the quote currency, ignored in $market orders
              * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {array} an ~@link https://docs.ccxt.com/#/?id=$order-structure $order structure~
              */
@@ -1462,7 +1466,17 @@ class bitstamp extends Exchange {
             $request = array(
                 'id' => $id,
             );
-            return Async\await($this->privatePostCancelOrder ($this->extend($request, $params)));
+            $response = Async\await($this->privatePostCancelOrder ($this->extend($request, $params)));
+            //
+            //    {
+            //        "id" => 1453282316578816,
+            //        "amount" => "0.02035278",
+            //        "price" => "2100.45",
+            //        "type" => 0,
+            //        "market" => "BTC/USD"
+            //    }
+            //
+            return $this->parse_order($response);
         }) ();
     }
 
@@ -1487,11 +1501,27 @@ class bitstamp extends Exchange {
             } else {
                 $response = Async\await($this->privatePostCancelAllOrders ($this->extend($request, $params)));
             }
-            return $response;
+            //
+            //    {
+            //        "canceled" => array(
+            //            {
+            //                "id" => 1453282316578816,
+            //                "amount" => "0.02035278",
+            //                "price" => "2100.45",
+            //                "type" => 0,
+            //                "currency_pair" => "BTC/USD",
+            //                "market" => "BTC/USD"
+            //            }
+            //        ),
+            //        "success" => true
+            //    }
+            //
+            $canceled = $this->safe_list($response, 'canceled');
+            return $this->parse_orders($canceled);
         }) ();
     }
 
-    public function parse_order_status($status) {
+    public function parse_order_status(?string $status) {
         $statuses = array(
             'In Queue' => 'open',
             'Open' => 'open',
@@ -1522,6 +1552,7 @@ class bitstamp extends Exchange {
             /**
              * fetches information on an order made by the user
              * @see https://www.bitstamp.net/api/#tag/Orders/operation/GetOrderStatus
+             * @param {string} $id the order $id
              * @param {string} $symbol unified $symbol of the $market the order was made in
              * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {array} An ~@link https://docs.ccxt.com/#/?$id=order-structure order structure~
@@ -1691,7 +1722,7 @@ class bitstamp extends Exchange {
         }) ();
     }
 
-    public function parse_transaction($transaction, ?array $currency = null): array {
+    public function parse_transaction(array $transaction, ?array $currency = null): array {
         //
         // fetchDepositsWithdrawals
         //
@@ -1814,7 +1845,7 @@ class bitstamp extends Exchange {
         );
     }
 
-    public function parse_transaction_status($status) {
+    public function parse_transaction_status(?string $status) {
         //
         //   withdrawals:
         //   0 (open), 1 (in process), 2 (finished), 3 (canceled) or 4 (failed).
@@ -1829,7 +1860,7 @@ class bitstamp extends Exchange {
         return $this->safe_string($statuses, $status, $status);
     }
 
-    public function parse_order($order, ?array $market = null): array {
+    public function parse_order(array $order, ?array $market = null): array {
         //
         //   from fetch $order:
         //     { $status => "Finished",
@@ -1868,6 +1899,16 @@ class bitstamp extends Exchange {
         //           "type" => "0",
         //           "id" => "2814205012"
         //       }
+        //
+        // cancelOrder
+        //
+        //    {
+        //        "id" => 1453282316578816,
+        //        "amount" => "0.02035278",
+        //        "price" => "2100.45",
+        //        "type" => 0,
+        //        "market" => "BTC/USD"
+        //    }
         //
         $id = $this->safe_string($order, 'id');
         $clientOrderId = $this->safe_string($order, 'client_order_id');
@@ -1919,7 +1960,7 @@ class bitstamp extends Exchange {
         return $this->safe_string($types, $type, $type);
     }
 
-    public function parse_ledger_entry($item, ?array $currency = null) {
+    public function parse_ledger_entry(array $item, ?array $currency = null): array {
         //
         //     array(
         //         array(
@@ -1963,9 +2004,9 @@ class bitstamp extends Exchange {
                 $market = $this->get_market_from_trade($item);
             }
             $direction = ($parsedTrade['side'] === 'buy') ? 'in' : 'out';
-            return array(
-                'id' => $parsedTrade['id'],
+            return $this->safe_ledger_entry(array(
                 'info' => $item,
+                'id' => $parsedTrade['id'],
                 'timestamp' => $parsedTrade['timestamp'],
                 'datetime' => $parsedTrade['datetime'],
                 'direction' => $direction,
@@ -1979,7 +2020,7 @@ class bitstamp extends Exchange {
                 'after' => null,
                 'status' => 'ok',
                 'fee' => $parsedTrade['fee'],
-            );
+            ), $currency);
         } else {
             $parsedTransaction = $this->parse_transaction($item, $currency);
             $direction = null;
@@ -1992,9 +2033,9 @@ class bitstamp extends Exchange {
                 $amount = $this->safe_string($item, $currency['id']);
                 $direction = Precise::string_gt($amount, '0') ? 'in' : 'out';
             }
-            return array(
-                'id' => $parsedTransaction['id'],
+            return $this->safe_ledger_entry(array(
                 'info' => $item,
+                'id' => $parsedTransaction['id'],
                 'timestamp' => $parsedTransaction['timestamp'],
                 'datetime' => $parsedTransaction['datetime'],
                 'direction' => $direction,
@@ -2008,18 +2049,18 @@ class bitstamp extends Exchange {
                 'after' => null,
                 'status' => $parsedTransaction['status'],
                 'fee' => $parsedTransaction['fee'],
-            );
+            ), $currency);
         }
     }
 
-    public function fetch_ledger(?string $code = null, ?int $since = null, ?int $limit = null, $params = array ()) {
+    public function fetch_ledger(?string $code = null, ?int $since = null, ?int $limit = null, $params = array ()): PromiseInterface {
         return Async\async(function () use ($code, $since, $limit, $params) {
             /**
-             * fetch the history of changes, actions done by the user or operations that altered balance of the user
+             * fetch the history of changes, actions done by the user or operations that altered the balance of the user
              * @see https://www.bitstamp.net/api/#tag/Transactions-private/operation/GetUserTransactions
-             * @param {string} $code unified $currency $code, default is null
+             * @param {string} [$code] unified $currency $code, default is null
              * @param {int} [$since] timestamp in ms of the earliest ledger entry, default is null
-             * @param {int} [$limit] max number of ledger entrys to return, default is null
+             * @param {int} [$limit] max number of ledger entries to return, default is null
              * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {array} a ~@link https://docs.ccxt.com/#/?id=ledger-structure ledger structure~
              */
@@ -2278,7 +2319,7 @@ class bitstamp extends Exchange {
         return array( 'url' => $url, 'method' => $method, 'body' => $body, 'headers' => $headers );
     }
 
-    public function handle_errors($httpCode, $reason, $url, $method, $headers, $body, $response, $requestHeaders, $requestBody) {
+    public function handle_errors(int $httpCode, string $reason, string $url, string $method, array $headers, string $body, $response, $requestHeaders, $requestBody) {
         if ($response === null) {
             return null;
         }

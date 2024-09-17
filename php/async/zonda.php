@@ -171,6 +171,10 @@ class zonda extends Exchange {
                         'balances/BITBAY/balance',
                         'fiat_cantor/rate/{baseId}/{quoteId}',
                         'fiat_cantor/history',
+                        'client_payments/v2/customer/crypto/{currency}/channels/deposit',
+                        'client_payments/v2/customer/crypto/{currency}/channels/withdrawal',
+                        'client_payments/v2/customer/crypto/deposit/fee',
+                        'client_payments/v2/customer/crypto/withdrawal/fee',
                     ),
                     'post' => array(
                         'trading/offer/{symbol}',
@@ -181,6 +185,8 @@ class zonda extends Exchange {
                         'fiat_cantor/exchange',
                         'api_payments/withdrawals/crypto',
                         'api_payments/withdrawals/fiat',
+                        'client_payments/v2/customer/crypto/deposit',
+                        'client_payments/v2/customer/crypto/withdrawal',
                     ),
                     'delete' => array(
                         'trading/offer/{symbol}/{id}/{side}/{price}',
@@ -421,7 +427,7 @@ class zonda extends Exchange {
         }) ();
     }
 
-    public function parse_order($order, ?array $market = null): array {
+    public function parse_order(array $order, ?array $market = null): array {
         //
         //     {
         //         "market" => "ETH-EUR",
@@ -439,6 +445,13 @@ class zonda extends Exchange {
         //         "firstBalanceId" => "5b816c3e-437c-4e43-9bef-47814ae7ebfc",
         //         "secondBalanceId" => "ab43023b-4079-414c-b340-056e3430a3af"
         //     }
+        //
+        // cancelOrder
+        //
+        //    {
+        //        status => "Ok",
+        //        errors => array()
+        //    }
         //
         $marketId = $this->safe_string($order, 'market');
         $symbol = $this->safe_symbol($marketId, $market, '-');
@@ -812,14 +825,14 @@ class zonda extends Exchange {
         }) ();
     }
 
-    public function fetch_ledger(?string $code = null, ?int $since = null, ?int $limit = null, $params = array ()) {
+    public function fetch_ledger(?string $code = null, ?int $since = null, ?int $limit = null, $params = array ()): PromiseInterface {
         return Async\async(function () use ($code, $since, $limit, $params) {
             /**
+             * fetch the history of changes, actions done by the user or operations that altered the balance of the user
              * @see https://docs.zondacrypto.exchange/reference/operations-history
-             * fetch the history of changes, actions done by the user or operations that altered balance of the user
-             * @param {string} $code unified $currency $code, default is null
+             * @param {string} [$code] unified $currency $code, default is null
              * @param {int} [$since] timestamp in ms of the earliest ledger entry, default is null
-             * @param {int} [$limit] max number of ledger entrys to return, default is null
+             * @param {int} [$limit] max number of ledger entries to return, default is null
              * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {array} a ~@link https://docs.ccxt.com/#/?id=ledger-structure ledger structure~
              */
@@ -844,7 +857,7 @@ class zonda extends Exchange {
         }) ();
     }
 
-    public function parse_ledger_entry($item, ?array $currency = null) {
+    public function parse_ledger_entry(array $item, ?array $currency = null): array {
         //
         //    FUNDS_MIGRATION
         //    {
@@ -1115,6 +1128,7 @@ class zonda extends Exchange {
         $timestamp = $this->safe_integer($item, 'time');
         $balance = $this->safe_value($item, 'balance', array());
         $currencyId = $this->safe_string($balance, 'currency');
+        $currency = $this->safe_currency($currencyId, $currency);
         $change = $this->safe_value($item, 'change', array());
         $amount = $this->safe_string($change, 'total');
         $direction = 'in';
@@ -1126,7 +1140,7 @@ class zonda extends Exchange {
         // that can be used to enrich the transfers with txid, address etc (you need to use info.detailId parameter)
         $fundsBefore = $this->safe_value($item, 'fundsBefore', array());
         $fundsAfter = $this->safe_value($item, 'fundsAfter', array());
-        return array(
+        return $this->safe_ledger_entry(array(
             'info' => $item,
             'id' => $this->safe_string($item, 'historyId'),
             'direction' => $direction,
@@ -1142,7 +1156,7 @@ class zonda extends Exchange {
             'timestamp' => $timestamp,
             'datetime' => $this->iso8601($timestamp),
             'fee' => null,
-        );
+        ), $currency);
     }
 
     public function parse_ledger_entry_type($type) {
@@ -1241,7 +1255,7 @@ class zonda extends Exchange {
         }) ();
     }
 
-    public function parse_trade($trade, ?array $market = null): array {
+    public function parse_trade(array $trade, ?array $market = null): array {
         //
         // createOrder trades
         //
@@ -1356,7 +1370,7 @@ class zonda extends Exchange {
              * @param {string} $type 'market' or 'limit'
              * @param {string} $side 'buy' or 'sell'
              * @param {float} $amount how much of currency you want to trade in units of base currency
-             * @param {float} [$price] the $price at which the order is to be fullfilled, in units of the quote currency, ignored in $market orders
+             * @param {float} [$price] the $price at which the order is to be fulfilled, in units of the quote currency, ignored in $market orders
              * @param {array} [$params] extra parameters specific to the exchange API endpoint
              * @return {array} an ~@link https://docs.ccxt.com/#/?$id=order-structure order structure~
              */
@@ -1503,13 +1517,14 @@ class zonda extends Exchange {
                 'side' => $side,
                 'price' => $price,
             );
+            $response = Async\await($this->v1_01PrivateDeleteTradingOfferSymbolIdSidePrice ($this->extend($request, $params)));
             // array( status => "Fail", errors => array( "NOT_RECOGNIZED_OFFER_TYPE" ) )  -- if required $params are missing
             // array( status => "Ok", errors => array() )
-            return Async\await($this->v1_01PrivateDeleteTradingOfferSymbolIdSidePrice ($this->extend($request, $params)));
+            return $this->parse_order($response);
         }) ();
     }
 
-    public function is_fiat($currency) {
+    public function is_fiat(string $currency): bool {
         $fiatCurrencies = array(
             'USD' => true,
             'EUR' => true,
@@ -1764,7 +1779,7 @@ class zonda extends Exchange {
         }) ();
     }
 
-    public function parse_transaction($transaction, ?array $currency = null): array {
+    public function parse_transaction(array $transaction, ?array $currency = null): array {
         //
         // withdraw
         //
@@ -1848,7 +1863,7 @@ class zonda extends Exchange {
         return array( 'url' => $url, 'method' => $method, 'body' => $body, 'headers' => $headers );
     }
 
-    public function handle_errors($httpCode, $reason, $url, $method, $headers, $body, $response, $requestHeaders, $requestBody) {
+    public function handle_errors(int $httpCode, string $reason, string $url, string $method, array $headers, string $body, $response, $requestHeaders, $requestBody) {
         if ($response === null) {
             return null; // fallback to default $error handler
         }
