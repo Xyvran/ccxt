@@ -32,6 +32,9 @@ export default class mexc extends Exchange {
                 'future': false,
                 'option': false,
                 'addMargin': true,
+                'borrowCrossMargin': false,
+                'borrowIsolatedMargin': false,
+                'borrowMargin': false,
                 'cancelAllOrders': true,
                 'cancelOrder': true,
                 'cancelOrders': undefined,
@@ -45,12 +48,21 @@ export default class mexc extends Exchange {
                 'createOrders': true,
                 'createPostOnlyOrder': true,
                 'createReduceOnlyOrder': true,
+                'createStopLimitOrder': true,
+                'createStopMarketOrder': true,
+                'createStopOrder': true,
+                'createTriggerOrder': true,
                 'deposit': undefined,
                 'editOrder': undefined,
                 'fetchAccounts': true,
                 'fetchBalance': true,
                 'fetchBidsAsks': true,
-                'fetchBorrowRateHistory': undefined,
+                'fetchBorrowInterest': false,
+                'fetchBorrowRate': false,
+                'fetchBorrowRateHistories': false,
+                'fetchBorrowRateHistory': false,
+                'fetchBorrowRates': false,
+                'fetchBorrowRatesPerSymbol': false,
                 'fetchCanceledOrders': true,
                 'fetchClosedOrder': undefined,
                 'fetchClosedOrders': true,
@@ -71,6 +83,7 @@ export default class mexc extends Exchange {
                 'fetchIndexOHLCV': true,
                 'fetchIsolatedBorrowRate': false,
                 'fetchIsolatedBorrowRates': false,
+                'fetchIsolatedPositions': false,
                 'fetchL2OrderBook': true,
                 'fetchLedger': undefined,
                 'fetchLedgerEntry': undefined,
@@ -79,11 +92,13 @@ export default class mexc extends Exchange {
                 'fetchLeverageTiers': true,
                 'fetchMarginAdjustmentHistory': false,
                 'fetchMarginMode': false,
-                'fetchMarketLeverageTiers': undefined,
+                'fetchMarketLeverageTiers': 'emulated',
                 'fetchMarkets': true,
                 'fetchMarkOHLCV': true,
                 'fetchMyTrades': true,
                 'fetchOHLCV': true,
+                'fetchOpenInterest': false,
+                'fetchOpenInterestHistory': false,
                 'fetchOpenOrder': undefined,
                 'fetchOpenOrders': true,
                 'fetchOrder': true,
@@ -91,7 +106,7 @@ export default class mexc extends Exchange {
                 'fetchOrderBooks': undefined,
                 'fetchOrders': true,
                 'fetchOrderTrades': true,
-                'fetchPosition': true,
+                'fetchPosition': 'emulated',
                 'fetchPositionHistory': 'emulated',
                 'fetchPositionMode': true,
                 'fetchPositions': true,
@@ -401,6 +416,8 @@ export default class mexc extends Exchange {
                 },
             },
             'options': {
+                'adjustForTimeDifference': false,
+                'timeDifference': 0,
                 'createMarketBuyOrderRequiresPrice': true,
                 'unavailableContracts': {
                     'BTC/USDT:USDT': true,
@@ -1018,6 +1035,9 @@ export default class mexc extends Exchange {
          * @param {object} [params] extra parameters specific to the exchange API endpoint
          * @returns {object[]} an array of objects representing market data
          */
+        if (this.options['adjustForTimeDifference']) {
+            await this.loadTimeDifference ();
+        }
         const spotMarketPromise = this.fetchSpotMarkets (params);
         const swapMarketPromise = this.fetchSwapMarkets (params);
         const [ spotMarket, swapMarket ] = await Promise.all ([ spotMarketPromise, swapMarketPromise ]);
@@ -2908,6 +2928,9 @@ export default class mexc extends Exchange {
          * @method
          * @name mexc#cancelOrder
          * @description cancels an open order
+         * @see https://mexcdevelop.github.io/apidocs/spot_v3_en/#cancel-order
+         * @see https://mexcdevelop.github.io/apidocs/contract_v1_en/#cancel-the-order-under-maintenance
+         * @see https://mexcdevelop.github.io/apidocs/contract_v1_en/#cancel-the-stop-limit-trigger-order-under-maintenance
          * @param {string} id order id
          * @param {string} symbol unified symbol of the market the order was made in
          * @param {object} [params] extra parameters specific to the exchange API endpoint
@@ -3021,6 +3044,7 @@ export default class mexc extends Exchange {
          * @method
          * @name mexc#cancelOrders
          * @description cancel multiple orders
+         * @see https://mexcdevelop.github.io/apidocs/contract_v1_en/#cancel-the-order-under-maintenance
          * @param {string[]} ids order ids
          * @param {string} symbol unified market symbol, default is undefined
          * @param {object} [params] extra parameters specific to the exchange API endpoint
@@ -4538,7 +4562,7 @@ export default class mexc extends Exchange {
             // 'coin': currency['id'] + network example: USDT-TRX,
             // 'status': 'status',
             // 'startTime': since, // default 90 days
-            // 'endTime': this.milliseconds (),
+            // 'endTime': this.nonce(),
             // 'limit': limit, // default 1000, maximum 1000
         };
         let currency = undefined;
@@ -4599,7 +4623,7 @@ export default class mexc extends Exchange {
             // 'coin': currency['id'],
             // 'status': 'status',
             // 'startTime': since, // default 90 days
-            // 'endTime': this.milliseconds (),
+            // 'endTime': this.nonce(),
             // 'limit': limit, // default 1000, maximum 1000
         };
         let currency = undefined;
@@ -4767,6 +4791,7 @@ export default class mexc extends Exchange {
          * @method
          * @name mexc#fetchPosition
          * @description fetch data on a single open contract trade position
+         * @see https://mexcdevelop.github.io/apidocs/contract_v1_en/#get-the-user-s-history-position-information
          * @param {string} symbol unified market symbol of the market the position is held in, default is undefined
          * @param {object} [params] extra parameters specific to the exchange API endpoint
          * @returns {object} a [position structure]{@link https://docs.ccxt.com/#/?id=position-structure}
@@ -4785,6 +4810,7 @@ export default class mexc extends Exchange {
          * @method
          * @name mexc#fetchPositions
          * @description fetch all open positions
+         * @see https://mexcdevelop.github.io/apidocs/contract_v1_en/#get-the-user-s-history-position-information
          * @param {string[]|undefined} symbols list of unified market symbols
          * @param {object} [params] extra parameters specific to the exchange API endpoint
          * @returns {object[]} a list of [position structure]{@link https://docs.ccxt.com/#/?id=position-structure}
@@ -5643,6 +5669,10 @@ export default class mexc extends Exchange {
         return this.filterBySinceLimit (positions, since, limit);
     }
 
+    nonce () {
+        return this.milliseconds () - this.safeInteger (this.options, 'timeDifference', 0);
+    }
+
     sign (path, api = 'public', method = 'GET', params = {}, headers = undefined, body = undefined) {
         const section = this.safeString (api, 0);
         const access = this.safeString (api, 1);
@@ -5656,7 +5686,7 @@ export default class mexc extends Exchange {
             }
             let paramsEncoded = '';
             if (access === 'private') {
-                params['timestamp'] = this.milliseconds ();
+                params['timestamp'] = this.nonce ();
                 params['recvWindow'] = this.safeInteger (this.options, 'recvWindow', 5000);
             }
             if (Object.keys (params).length) {
@@ -5684,7 +5714,7 @@ export default class mexc extends Exchange {
                 }
             } else {
                 this.checkRequiredCredentials ();
-                const timestamp = this.milliseconds ().toString ();
+                const timestamp = this.nonce ().toString ();
                 let auth = '';
                 headers = {
                     'ApiKey': this.apiKey,
