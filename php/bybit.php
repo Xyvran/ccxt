@@ -4770,7 +4770,7 @@ class bybit extends Exchange {
             throw new NotSupported($this->id . ' fetchOrder() is not supported for spot markets');
         }
         $request = array();
-        $clientOrderId = $this->safe_string_2($params, 'origClientOrderId', 'clientOrderId');
+        $clientOrderId = $this->safe_string_2($params, 'orderLinkId', 'clientOrderId');
         if ($clientOrderId !== null) {
             $request['orderLinkId'] = $clientOrderId;
         } else {
