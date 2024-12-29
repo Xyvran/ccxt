@@ -414,7 +414,7 @@ class kucoinfutures extends \ccxt\async\kucoinfutures {
         if ($this->positions === null) {
             return null;
         }
-        $cache = $this->positions.hashmap;
+        $cache = $this->positions->hashmap;
         $symbolCache = $this->safe_value($cache, $symbol, array());
         $values = is_array($symbolCache) ? array_values($symbolCache) : array();
         return $this->safe_value($values, 0);
