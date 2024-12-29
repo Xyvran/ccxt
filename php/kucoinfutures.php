@@ -2309,6 +2309,9 @@ class kucoinfutures extends kucoin {
         if ($since !== null) {
             $request['startAt'] = $since;
         }
+        if ($limit !== null) {
+            $request['pageSize'] = min (1000, $limit);
+        }
         list($request, $params) = $this->handle_until_option('endAt', $request, $params);
         $response = $this->futuresPrivateGetFills ($this->extend($request, $params));
         //
