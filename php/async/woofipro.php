@@ -351,7 +351,7 @@ class woofipro extends Exchange {
                     'fetchClosedOrders' => array(
                         'marginMode' => false,
                         'limit' => 500,
-                        'daysBackClosed' => null,
+                        'daysBack' => null,
                         'daysBackCanceled' => null,
                         'untilDays' => 100000,
                         'trigger' => true,
@@ -372,7 +372,7 @@ class woofipro extends Exchange {
                         'attachedStopLossTakeProfit' => array(
                             // todo => implementation needs unification
                             'triggerPriceType' => null,
-                            'limitPrice' => false,
+                            'price' => false,
                         ),
                     ),
                 ),
@@ -993,8 +993,7 @@ class woofipro extends Exchange {
             //
             $data = $this->safe_dict($response, 'data', array());
             $rows = $this->safe_list($data, 'rows', array());
-            $result = $this->parse_funding_rates($rows);
-            return $this->filter_by_array($result, 'symbol', $symbols);
+            return $this->parse_funding_rates($rows, $symbols);
         }) ();
     }
 

@@ -282,9 +282,6 @@ public partial class bitmex : Exchange
                             { "trailing", true },
                             { "marketBuyRequiresPrice", false },
                             { "marketBuyByCost", false },
-                            { "leverage", false },
-                            { "selfTradePrevention", false },
-                            { "iceberg", true },
                         } },
                         { "createOrders", null },
                         { "fetchMyTrades", new Dictionary<string, object>() {

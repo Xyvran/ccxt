@@ -492,7 +492,7 @@ class kraken(Exchange, ImplicitAPI):
                     'fetchClosedOrders': {
                         'marginMode': False,
                         'limit': None,
-                        'daysBackClosed': None,
+                        'daysBack': None,
                         'daysBackCanceled': None,
                         'untilDays': 100000,
                         'trigger': False,
@@ -706,7 +706,7 @@ class kraken(Exchange, ImplicitAPI):
         if currencyId is not None:
             if len(currencyId) > 3:
                 if (currencyId.find('X') == 0) or (currencyId.find('Z') == 0):
-                    if not (currencyId.find('.') > 0):
+                    if not (currencyId.find('.') > 0) and (currencyId != 'ZEUS'):
                         currencyId = currencyId[1:]
         return super(kraken, self).safe_currency(currencyId, currency)
 
@@ -1488,8 +1488,10 @@ class kraken(Exchange, ImplicitAPI):
         """
         self.load_markets()
         # only buy orders are supported by the endpoint
-        params['cost'] = cost
-        return self.create_order(symbol, 'market', side, cost, None, params)
+        req = {
+            'cost': cost,
+        }
+        return self.create_order(symbol, 'market', side, 1, None, self.extend(req, params))
 
     def create_market_buy_order_with_cost(self, symbol: str, cost: float, params={}):
         """

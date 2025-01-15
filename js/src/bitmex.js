@@ -302,9 +302,11 @@ export default class bitmex extends Exchange {
                             'trailing': true,
                             'marketBuyRequiresPrice': false,
                             'marketBuyByCost': false,
-                            'leverage': false,
-                            'selfTradePrevention': false,
-                            'iceberg': true, // todo
+                            // exchange-supported features
+                            // 'selfTradePrevention': true,
+                            // 'twap': false,
+                            // 'iceberg': false,
+                            // 'oco': false,
                         },
                         'createOrders': undefined,
                         'fetchMyTrades': {

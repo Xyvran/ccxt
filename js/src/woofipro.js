@@ -353,7 +353,7 @@ export default class woofipro extends Exchange {
                     'fetchClosedOrders': {
                         'marginMode': false,
                         'limit': 500,
-                        'daysBackClosed': undefined,
+                        'daysBack': undefined,
                         'daysBackCanceled': undefined,
                         'untilDays': 100000,
                         'trigger': true,
@@ -374,7 +374,7 @@ export default class woofipro extends Exchange {
                         'attachedStopLossTakeProfit': {
                             // todo: implementation needs unification
                             'triggerPriceType': undefined,
-                            'limitPrice': false,
+                            'price': false,
                         },
                     },
                 },
@@ -967,8 +967,7 @@ export default class woofipro extends Exchange {
         //
         const data = this.safeDict(response, 'data', {});
         const rows = this.safeList(data, 'rows', []);
-        const result = this.parseFundingRates(rows);
-        return this.filterByArray(result, 'symbol', symbols);
+        return this.parseFundingRates(rows, symbols);
     }
     /**
      * @method
