@@ -440,6 +440,7 @@ class mexc extends Exchange {
                         '1h' => '60m',
                         '4h' => '4h',
                         '1d' => '1d',
+                        '1w' => '1W',
                         '1M' => '1M',
                     ),
                     'swap' => array(
@@ -731,7 +732,7 @@ class mexc extends Exchange {
                     'fetchClosedOrders' => array(
                         'marginMode' => true,
                         'limit' => 1000,
-                        'daysBackClosed' => 7,
+                        'daysBack' => 7,
                         'daysBackCanceled' => 7,
                         'untilDays' => 7,
                         'trigger' => false,
@@ -787,7 +788,7 @@ class mexc extends Exchange {
                     'fetchClosedOrders' => array(
                         'marginMode' => false,
                         'limit' => 100,
-                        'daysBackClosed' => 90,
+                        'daysBack' => 90,
                         'daysBackCanceled' => null,
                         'untilDays' => 90,
                         'trigger' => true,
@@ -2248,8 +2249,10 @@ class mexc extends Exchange {
         if (!$market['spot']) {
             throw new NotSupported($this->id . ' createMarketBuyOrderWithCost() supports spot orders only');
         }
-        $params['cost'] = $cost;
-        return $this->create_order($symbol, 'market', 'buy', 0, null, $params);
+        $req = array(
+            'cost' => $cost,
+        );
+        return $this->create_order($symbol, 'market', 'buy', 0, null, $this->extend($req, $params));
     }
 
     public function create_market_sell_order_with_cost(string $symbol, float $cost, $params = array ()) {
@@ -2268,8 +2271,10 @@ class mexc extends Exchange {
         if (!$market['spot']) {
             throw new NotSupported($this->id . ' createMarketBuyOrderWithCost() supports spot orders only');
         }
-        $params['cost'] = $cost;
-        return $this->create_order($symbol, 'market', 'sell', 0, null, $params);
+        $req = array(
+            'cost' => $cost,
+        );
+        return $this->create_order($symbol, 'market', 'sell', 0, null, $this->extend($req, $params));
     }
 
     public function create_order(string $symbol, string $type, string $side, float $amount, ?float $price = null, $params = array ()) {

@@ -528,6 +528,8 @@ export default class bitmart extends Exchange {
                 'defaultNetworks': {
                     'USDT': 'ERC20',
                 },
+                'timeDifference': 0, // the difference between system clock and exchange clock
+                'adjustForTimeDifference': false, // controls the adjustment logic upon instantiation
                 'networks': {
                     'ERC20': 'ERC20',
                     'SOL': 'SOL',
@@ -739,7 +741,7 @@ export default class bitmart extends Exchange {
                     'fetchClosedOrders': {
                         'marginMode': true,
                         'limit': 200,
-                        'daysBackClosed': undefined,
+                        'daysBack': undefined,
                         'daysBackCanceled': undefined,
                         'untilDays': undefined,
                         'trigger': false,
@@ -768,7 +770,7 @@ export default class bitmart extends Exchange {
                                 'mark': true,
                                 'index': false,
                             },
-                            'limitPrice': false,
+                            'price': false,
                         },
                         'timeInForce': {
                             'IOC': true,
@@ -806,7 +808,7 @@ export default class bitmart extends Exchange {
                     'fetchClosedOrders': {
                         'marginMode': true,
                         'limit': 200,
-                        'daysBackClosed': undefined,
+                        'daysBack': undefined,
                         'daysBackCanceled': undefined,
                         'untilDays': undefined,
                         'trigger': false,
@@ -1146,6 +1148,9 @@ export default class bitmart extends Exchange {
      * @returns {object[]} an array of objects representing market data
      */
     async fetchMarkets (params = {}): Promise<Market[]> {
+        if (this.options['adjustForTimeDifference']) {
+            await this.loadTimeDifference ();
+        }
         const spot = await this.fetchSpotMarkets (params);
         const contract = await this.fetchContractMarkets (params);
         return this.arrayConcat (spot, contract);
@@ -5310,7 +5315,7 @@ export default class bitmart extends Exchange {
     }
 
     nonce () {
-        return this.milliseconds ();
+        return this.milliseconds () - this.options['timeDifference'];
     }
 
     sign (path, api = 'public', method = 'GET', params = {}, headers = undefined, body = undefined) {
@@ -5331,7 +5336,7 @@ export default class bitmart extends Exchange {
         }
         if (api === 'private') {
             this.checkRequiredCredentials ();
-            const timestamp = this.milliseconds ().toString ();
+            const timestamp = this.nonce ().toString ();
             const brokerId = this.safeString (this.options, 'brokerId', 'CCXTxBitmart000');
             headers = {
                 'X-BM-KEY': this.apiKey,

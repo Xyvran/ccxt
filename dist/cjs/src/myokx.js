@@ -2,7 +2,7 @@
 
 var okx = require('./okx.js');
 
-// ---------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
 class myokx extends okx {
     describe() {
@@ -27,6 +27,14 @@ class myokx extends okx {
                 'test': {
                     'rest': 'https://{hostname}',
                 },
+            },
+            'has': {
+                'CORS': undefined,
+                'spot': true,
+                'margin': undefined,
+                'swap': false,
+                'future': false,
+                'option': false,
             },
         });
     }

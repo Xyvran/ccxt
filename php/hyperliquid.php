@@ -224,7 +224,6 @@ class hyperliquid extends Exchange {
                         'takeProfitPrice' => false,
                         'attachedStopLossTakeProfit' => null,
                         'timeInForce' => array(
-                            'GTC' => true,
                             'IOC' => true,
                             'FOK' => false,
                             'PO' => true,
@@ -269,7 +268,7 @@ class hyperliquid extends Exchange {
                     'fetchClosedOrders' => array(
                         'marginMode' => false,
                         'limit' => 2000,
-                        'daysBackClosed' => null,
+                        'daysBack' => null,
                         'daysBackCanceled' => null,
                         'untilDays' => null,
                         'trigger' => false,
@@ -695,6 +694,11 @@ class hyperliquid extends Exchange {
         $price = $this->safe_number($market, 'markPx', 0);
         $pricePrecision = $this->calculate_price_precision($price, $amountPrecision, 6);
         $pricePrecisionStr = $this->number_to_string($pricePrecision);
+        $isDelisted = $this->safe_bool($market, 'isDelisted');
+        $active = true;
+        if ($isDelisted !== null) {
+            $active = !$isDelisted;
+        }
         return $this->safe_market_structure(array(
             'id' => $baseId,
             'symbol' => $symbol,
@@ -710,7 +714,7 @@ class hyperliquid extends Exchange {
             'swap' => $swap,
             'future' => false,
             'option' => false,
-            'active' => true,
+            'active' => $active,
             'contract' => $contract,
             'linear' => true,
             'inverse' => false,
@@ -977,8 +981,7 @@ class hyperliquid extends Exchange {
             );
             $result[] = $data;
         }
-        $funding_rates = $this->parse_funding_rates($result);
-        return $this->filter_by_array($funding_rates, 'symbol', $symbols);
+        return $this->parse_funding_rates($result, $symbols);
     }
 
     public function parse_funding_rate($info, ?array $market = null): array {
@@ -1936,6 +1939,9 @@ class hyperliquid extends Exchange {
          * @return {array[]} a list of ~@link https://docs.ccxt.com/#/?id=funding-rate-history-structure funding rate structures~
          */
         $this->load_markets();
+        if ($symbol === null) {
+            throw new ArgumentsRequired($this->id . ' fetchFundingRateHistory() requires a $symbol argument');
+        }
         $market = $this->market($symbol);
         $request = array(
             'type' => 'fundingHistory',
@@ -2273,7 +2279,7 @@ class hyperliquid extends Exchange {
             $market = $this->safe_market($marketId, $market);
         }
         $symbol = $market['symbol'];
-        $timestamp = $this->safe_integer_2($order, 'timestamp', 'statusTimestamp');
+        $timestamp = $this->safe_integer($entry, 'timestamp');
         $status = $this->safe_string_2($order, 'status', 'ccxtStatus');
         $order = $this->omit($order, array( 'ccxtStatus' ));
         $side = $this->safe_string($entry, 'side');
@@ -2289,7 +2295,7 @@ class hyperliquid extends Exchange {
             'timestamp' => $timestamp,
             'datetime' => $this->iso8601($timestamp),
             'lastTradeTimestamp' => null,
-            'lastUpdateTimestamp' => null,
+            'lastUpdateTimestamp' => $this->safe_integer($order, 'statusTimestamp'),
             'symbol' => $symbol,
             'type' => $this->parse_order_type($this->safe_string_lower($entry, 'orderType')),
             'timeInForce' => $this->safe_string_upper($entry, 'tif'),
@@ -3296,8 +3302,7 @@ class hyperliquid extends Exchange {
         $this->load_markets();
         $symbols = $this->market_symbols($symbols);
         $swapMarkets = $this->fetch_swap_markets();
-        $result = $this->parse_open_interests($swapMarkets);
-        return $this->filter_by_array($result, 'symbol', $symbols);
+        return $this->parse_open_interests($swapMarkets, $symbols);
     }
 
     public function fetch_open_interest(string $symbol, $params = array ()) {

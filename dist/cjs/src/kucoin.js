@@ -6,7 +6,7 @@ var Precise = require('./base/Precise.js');
 var number = require('./base/functions/number.js');
 var sha256 = require('./static_dependencies/noble-hashes/sha256.js');
 
-// ---------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
 //  ---------------------------------------------------------------------------
 /**
  * @class kucoin
@@ -1036,7 +1036,7 @@ class kucoin extends kucoin$1 {
                     'fetchClosedOrders': {
                         'marginMode': true,
                         'limit': 500,
-                        'daysBackClosed': undefined,
+                        'daysBack': undefined,
                         'daysBackCanceled': undefined,
                         'untilDays': 7,
                         'trigger': true,
@@ -2315,8 +2315,10 @@ class kucoin extends kucoin$1 {
      */
     async createMarketOrderWithCost(symbol, side, cost, params = {}) {
         await this.loadMarkets();
-        params['cost'] = cost;
-        return await this.createOrder(symbol, 'market', side, cost, undefined, params);
+        const req = {
+            'cost': cost,
+        };
+        return await this.createOrder(symbol, 'market', side, 0, undefined, this.extend(req, params));
     }
     /**
      * @method

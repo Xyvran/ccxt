@@ -7,7 +7,7 @@ var Precise = require('./base/Precise.js');
 var sha256 = require('./static_dependencies/noble-hashes/sha256.js');
 var totp = require('./base/functions/totp.js');
 
-//  ---------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
 //  ---------------------------------------------------------------------------
 /**
  * @class bitmex
@@ -299,9 +299,11 @@ class bitmex extends bitmex$1 {
                             'trailing': true,
                             'marketBuyRequiresPrice': false,
                             'marketBuyByCost': false,
-                            'leverage': false,
-                            'selfTradePrevention': false,
-                            'iceberg': true, // todo
+                            // exchange-supported features
+                            // 'selfTradePrevention': true,
+                            // 'twap': false,
+                            // 'iceberg': false,
+                            // 'oco': false,
                         },
                         'createOrders': undefined,
                         'fetchMyTrades': {

@@ -6,7 +6,7 @@ var Precise = require('./base/Precise.js');
 var sha256 = require('./static_dependencies/noble-hashes/sha256.js');
 var number = require('./base/functions/number.js');
 
-//  ---------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
 //  ---------------------------------------------------------------------------
 /**
  * @class bingx
@@ -550,7 +550,7 @@ class bingx extends bingx$1 {
                                 'mark': true,
                                 'index': true,
                             },
-                            'limitPrice': true,
+                            'price': true,
                         },
                         'timeInForce': {
                             'IOC': true,
@@ -597,7 +597,7 @@ class bingx extends bingx$1 {
                     'fetchClosedOrders': {
                         'marginMode': false,
                         'limit': 1000,
-                        'daysBackClosed': undefined,
+                        'daysBack': undefined,
                         'daysBackCanceled': undefined,
                         'untilDays': 7,
                         'trigger': false,
@@ -621,7 +621,7 @@ class bingx extends bingx$1 {
                     'fetchClosedOrders': {
                         'marginMode': false,
                         'limit': 1000,
-                        'daysBackClosed': undefined,
+                        'daysBack': undefined,
                         'daysBackCanceled': undefined,
                         'untilDays': 7,
                         'trigger': false,
@@ -1567,8 +1567,7 @@ class bingx extends bingx$1 {
         symbols = this.marketSymbols(symbols, 'swap', true);
         const response = await this.swapV2PublicGetQuotePremiumIndex(this.extend(params));
         const data = this.safeList(response, 'data', []);
-        const result = this.parseFundingRates(data);
-        return this.filterByArray(result, 'symbol', symbols);
+        return this.parseFundingRates(data, symbols);
     }
     parseFundingRate(contract, market = undefined) {
         //
@@ -1657,22 +1656,24 @@ class bingx extends bingx$1 {
         //    }
         //
         const data = this.safeList(response, 'data', []);
-        const rates = [];
-        for (let i = 0; i < data.length; i++) {
-            const entry = data[i];
-            const marketId = this.safeString(entry, 'symbol');
-            const symbolInner = this.safeSymbol(marketId, market, '-', 'swap');
-            const timestamp = this.safeInteger(entry, 'fundingTime');
-            rates.push({
-                'info': entry,
-                'symbol': symbolInner,
-                'fundingRate': this.safeNumber(entry, 'fundingRate'),
-                'timestamp': timestamp,
-                'datetime': this.iso8601(timestamp),
-            });
-        }
-        const sorted = this.sortBy(rates, 'timestamp');
-        return this.filterBySymbolSinceLimit(sorted, market['symbol'], since, limit);
+        return this.parseFundingRateHistories(data, market, since, limit);
+    }
+    parseFundingRateHistory(contract, market = undefined) {
+        //
+        //     {
+        //         "symbol": "BTC-USDT",
+        //         "fundingRate": "0.0001",
+        //         "fundingTime": 1585684800000
+        //     }
+        //
+        const timestamp = this.safeInteger(contract, 'fundingTime');
+        return {
+            'info': contract,
+            'symbol': this.safeSymbol(this.safeString(contract, 'symbol'), market, '-', 'swap'),
+            'fundingRate': this.safeNumber(contract, 'fundingRate'),
+            'timestamp': timestamp,
+            'datetime': this.iso8601(timestamp),
+        };
     }
     /**
      * @method
@@ -2737,8 +2738,10 @@ class bingx extends bingx$1 {
      * @returns {object} an [order structure]{@link https://docs.ccxt.com/#/?id=order-structure}
      */
     async createMarketOrderWithCost(symbol, side, cost, params = {}) {
-        params['quoteOrderQty'] = cost;
-        return await this.createOrder(symbol, 'market', side, cost, undefined, params);
+        const req = {
+            'quoteOrderQty': cost,
+        };
+        return await this.createOrder(symbol, 'market', side, cost, undefined, this.extend(req, params));
     }
     /**
      * @method
@@ -2750,8 +2753,10 @@ class bingx extends bingx$1 {
      * @returns {object} an [order structure]{@link https://docs.ccxt.com/#/?id=order-structure}
      */
     async createMarketBuyOrderWithCost(symbol, cost, params = {}) {
-        params['quoteOrderQty'] = cost;
-        return await this.createOrder(symbol, 'market', 'buy', cost, undefined, params);
+        const req = {
+            'quoteOrderQty': cost,
+        };
+        return await this.createOrder(symbol, 'market', 'buy', cost, undefined, this.extend(req, params));
     }
     /**
      * @method
@@ -2763,8 +2768,10 @@ class bingx extends bingx$1 {
      * @returns {object} an [order structure]{@link https://docs.ccxt.com/#/?id=order-structure}
      */
     async createMarketSellOrderWithCost(symbol, cost, params = {}) {
-        params['quoteOrderQty'] = cost;
-        return await this.createOrder(symbol, 'market', 'sell', cost, undefined, params);
+        const req = {
+            'quoteOrderQty': cost,
+        };
+        return await this.createOrder(symbol, 'market', 'sell', cost, undefined, this.extend(req, params));
     }
     createOrderRequest(symbol, type, side, amount, price = undefined, params = {}) {
         /**
@@ -6482,7 +6489,13 @@ class bingx extends bingx$1 {
         else if (access === 'private') {
             this.checkRequiredCredentials();
             const isJsonContentType = (((type === 'subAccount') || (type === 'account/transfer')) && (method === 'POST'));
-            const parsedParams = this.parseParams(params);
+            let parsedParams = undefined;
+            if (isJsonContentType) {
+                parsedParams = params;
+            }
+            else {
+                parsedParams = this.parseParams(params);
+            }
             const signature = this.hmac(this.encode(this.rawencode(parsedParams)), this.encode(this.secret), sha256.sha256);
             headers = {
                 'X-BX-APIKEY': this.apiKey,
