@@ -208,6 +208,8 @@ export default class hyperliquid extends Exchange {
                     'Order price cannot be more than 80% away from the reference price': InvalidOrder,
                     'Order has zero size.': InvalidOrder,
                     'Insufficient spot balance asset': InsufficientFunds,
+                    'Insufficient balance for withdrawal': InsufficientFunds,
+                    'Insufficient balance for token transfer': InsufficientFunds,
                 },
             },
             'precisionMode': TICK_SIZE,
@@ -398,7 +400,7 @@ export default class hyperliquid extends Exchange {
     }
     /**
      * @method
-     * @name hyperliquid#fetchMarkets
+     * @name hyperliquid#fetchSwapMarkets
      * @description retrieves data on all swap markets for hyperliquid
      * @see https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/info-endpoint/perpetuals#retrieve-perpetuals-asset-contexts-includes-mark-price-current-funding-open-interest-etc
      * @param {object} [params] extra parameters specific to the exchange API endpoint
@@ -453,7 +455,7 @@ export default class hyperliquid extends Exchange {
     }
     /**
      * @method
-     * @name calculatePricePrecision
+     * @name hyperliquid#calculatePricePrecision
      * @description Helper function to calculate the Hyperliquid DECIMAL_PLACES price precision
      * @param {float} price the price to use in the calculation
      * @param {int} amountPrecision the amountPrecision to use in the calculation
@@ -502,7 +504,7 @@ export default class hyperliquid extends Exchange {
     }
     /**
      * @method
-     * @name hyperliquid#fetchMarkets
+     * @name hyperliquid#fetchSpotMarkets
      * @description retrieves data on all spot markets for hyperliquid
      * @see https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/info-endpoint/spot#retrieve-spot-asset-contexts
      * @param {object} [params] extra parameters specific to the exchange API endpoint
@@ -1400,7 +1402,7 @@ export default class hyperliquid extends Exchange {
     createOrdersRequest(orders, params = {}) {
         /**
          * @method
-         * @name hyperliquid#createOrders
+         * @name hyperliquid#createOrdersRequest
          * @description create a list of trade orders
          * @see https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/exchange-endpoint#place-an-order
          * @param {Array} orders list of orders to create, each object should contain the parameters required by createOrder, namely symbol, type, side, amount, price and params
@@ -2860,7 +2862,26 @@ export default class hyperliquid extends Exchange {
             'signature': sig,
         };
         const response = await this.privatePostExchange(request);
-        return response;
+        //
+        // {'response': {'type': 'default'}, 'status': 'ok'}
+        //
+        return this.parseTransfer(response);
+    }
+    parseTransfer(transfer, currency = undefined) {
+        //
+        // {'response': {'type': 'default'}, 'status': 'ok'}
+        //
+        return {
+            'info': transfer,
+            'id': undefined,
+            'timestamp': undefined,
+            'datetime': undefined,
+            'currency': undefined,
+            'amount': undefined,
+            'fromAccount': undefined,
+            'toAccount': undefined,
+            'status': 'ok',
+        };
     }
     /**
      * @method
