@@ -318,6 +318,12 @@ public partial class blofin
     /// </description>
     /// </item>
     /// <item>
+    /// <term>params.triggerPrice</term>
+    /// <description>
+    /// string : the trigger price for a trigger order
+    /// </description>
+    /// </item>
+    /// <item>
     /// <term>params.reduceOnly</term>
     /// <description>
     /// bool : a mark to reduce the position size for margin, swap and future orders
@@ -403,7 +409,13 @@ public partial class blofin
     /// <item>
     /// <term>params.trigger</term>
     /// <description>
-    /// boolean : True if cancelling a trigger/conditional order/tp sl orders
+    /// boolean : True if cancelling a trigger/conditional
+    /// </description>
+    /// </item>
+    /// <item>
+    /// <term>params.tpsl</term>
+    /// <description>
+    /// boolean : True if cancelling a tpsl order
     /// </description>
     /// </item>
     /// </list>
@@ -440,6 +452,7 @@ public partial class blofin
     /// <remarks>
     /// See <see href="https://blofin.com/docs#get-active-orders"/>  <br/>
     /// See <see href="https://blofin.com/docs#get-active-tpsl-orders"/>  <br/>
+    /// See <see href="https://docs.blofin.com/index.html#get-active-algo-orders"/>  <br/>
     /// <list type="table">
     /// <item>
     /// <term>since</term>
@@ -749,6 +762,27 @@ public partial class blofin
         var res = await this.fetchPosition(symbol, parameters);
         return new Position(res);
     }
+    /// <summary>
+    /// fetch data on a single open contract trade position
+    /// </summary>
+    /// <remarks>
+    /// See <see href="https://blofin.com/docs#get-positions"/>  <br/>
+    /// <list type="table">
+    /// <item>
+    /// <term>params</term>
+    /// <description>
+    /// object : extra parameters specific to the exchange API endpoint
+    /// </description>
+    /// </item>
+    /// <item>
+    /// <term>params.instType</term>
+    /// <description>
+    /// string : MARGIN, SWAP, FUTURES, OPTION
+    /// </description>
+    /// </item>
+    /// </list>
+    /// </remarks>
+    /// <returns> <term>object</term> a [position structure]{@link https://docs.ccxt.com/#/?id=position-structure}.</returns>
     public async Task<List<Position>> FetchPositions(List<String> symbols = null, Dictionary<string, object> parameters = null)
     {
         var res = await this.fetchPositions(symbols, parameters);

@@ -12,12 +12,12 @@ use ccxt\ArgumentsRequired;
 use ccxt\BadSymbol;
 use ccxt\OrderNotFound;
 use ccxt\Precise;
-use React\Async;
-use React\Promise\PromiseInterface;
+use \React\Async;
+use \React\Promise\PromiseInterface;
 
 class bitteam extends Exchange {
 
-    public function describe() {
+    public function describe(): mixed {
         return $this->deep_extend(parent::describe(), array(
             'id' => 'bitteam',
             'name' => 'BIT.TEAM',
@@ -254,17 +254,20 @@ class bitteam extends Exchange {
                         'limit' => 100,
                         'daysBack' => 100000,
                         'untilDays' => 100000,
+                        'symbolRequired' => false,
                     ),
                     'fetchOrder' => array(
                         'marginMode' => false,
                         'trigger' => false,
                         'trailing' => false,
+                        'symbolRequired' => false,
                     ),
                     'fetchOpenOrders' => array(
                         'marginMode' => false,
                         'limit' => 100,
                         'trigger' => false,
                         'trailing' => false,
+                        'symbolRequired' => false,
                     ),
                     'fetchOrders' => array(
                         'marginMode' => true,
@@ -273,6 +276,7 @@ class bitteam extends Exchange {
                         'untilDays' => null,
                         'trigger' => false,
                         'trailing' => false,
+                        'symbolRequired' => false,
                     ),
                     'fetchClosedOrders' => array(
                         'marginMode' => false,
@@ -282,6 +286,7 @@ class bitteam extends Exchange {
                         'untilDays' => null,
                         'trigger' => false,
                         'trailing' => false,
+                        'symbolRequired' => false,
                     ),
                     'fetchOHLCV' => array(
                         'limit' => 1000,
@@ -649,6 +654,7 @@ class bitteam extends Exchange {
                 $networkIds = is_array($feesByNetworkId) ? array_keys($feesByNetworkId) : array();
                 $networks = array();
                 $networkPrecision = $this->parse_number($this->parse_precision($this->safe_string($currency, 'decimals')));
+                $typeRaw = $this->safe_string($currency, 'type');
                 for ($j = 0; $j < count($networkIds); $j++) {
                     $networkId = $networkIds[$j];
                     $networkCode = $this->network_id_to_code($networkId, $code);
@@ -703,6 +709,7 @@ class bitteam extends Exchange {
                             'max' => null,
                         ),
                     ),
+                    'type' => $typeRaw, // 'crypto' or 'fiat'
                     'networks' => $networks,
                 );
             }

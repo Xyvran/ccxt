@@ -13,13 +13,13 @@ use ccxt\BadRequest;
 use ccxt\BadSymbol;
 use ccxt\NotSupported;
 use ccxt\Precise;
-use React\Async;
-use React\Promise;
-use React\Promise\PromiseInterface;
+use \React\Async;
+use \React\Promise;
+use \React\Promise\PromiseInterface;
 
 class ascendex extends Exchange {
 
-    public function describe() {
+    public function describe(): mixed {
         return $this->deep_extend(parent::describe(), array(
             'id' => 'ascendex',
             'name' => 'AscendEX',
@@ -62,6 +62,7 @@ class ascendex extends Exchange {
                 'fetchFundingRate' => 'emulated',
                 'fetchFundingRateHistory' => false,
                 'fetchFundingRates' => true,
+                'fetchGreeks' => false,
                 'fetchIndexOHLCV' => false,
                 'fetchLeverage' => 'emulated',
                 'fetchLeverages' => true,
@@ -71,10 +72,13 @@ class ascendex extends Exchange {
                 'fetchMarketLeverageTiers' => 'emulated',
                 'fetchMarkets' => true,
                 'fetchMarkOHLCV' => false,
+                'fetchMySettlementHistory' => false,
                 'fetchOHLCV' => true,
                 'fetchOpenInterest' => false,
                 'fetchOpenInterestHistory' => false,
                 'fetchOpenOrders' => true,
+                'fetchOption' => false,
+                'fetchOptionChain' => false,
                 'fetchOrder' => true,
                 'fetchOrderBook' => true,
                 'fetchOrders' => false,
@@ -83,6 +87,7 @@ class ascendex extends Exchange {
                 'fetchPositions' => true,
                 'fetchPositionsRisk' => false,
                 'fetchPremiumIndexOHLCV' => false,
+                'fetchSettlementHistory' => false,
                 'fetchTicker' => true,
                 'fetchTickers' => true,
                 'fetchTime' => true,
@@ -94,6 +99,7 @@ class ascendex extends Exchange {
                 'fetchTransactions' => 'emulated',
                 'fetchTransfer' => false,
                 'fetchTransfers' => false,
+                'fetchVolatilityHistory' => false,
                 'fetchWithdrawal' => false,
                 'fetchWithdrawals' => true,
                 'reduceMargin' => true,
@@ -289,7 +295,6 @@ class ascendex extends Exchange {
                     'AVAX' => 'avalanche C chain',
                     'OMNI' => 'Omni',
                     // 'TRC' => 'TRC20',
-                    'TRX' => 'TRC20',
                     'TRC20' => 'TRC20',
                     'ERC20' => 'ERC20',
                     'GO20' => 'GO20',
@@ -335,6 +340,7 @@ class ascendex extends Exchange {
                         'trigger' => false,
                         'trailing' => false,
                         'marketType' => true,
+                        'symbolRequired' => false,
                     ),
                     'fetchOpenOrders' => array(
                         'marginMode' => false,
@@ -342,6 +348,7 @@ class ascendex extends Exchange {
                         'trigger' => false,
                         'trailing' => false,
                         'marketType' => true,
+                        'symbolRequired' => false,
                     ),
                     'fetchOrders' => null,
                     'fetchClosedOrders' => null,
@@ -359,6 +366,7 @@ class ascendex extends Exchange {
                         'untilDays' => 100000,
                         'trigger' => false,
                         'trailing' => false,
+                        'symbolRequired' => false,
                     ),
                 ),
                 'forDerivatives' => array(
@@ -382,6 +390,7 @@ class ascendex extends Exchange {
                         'untilDays' => null,
                         'trigger' => false,
                         'trailing' => false,
+                        'symbolRequired' => false,
                     ),
                 ),
                 'swap' => array(
@@ -510,6 +519,7 @@ class ascendex extends Exchange {
             //         "data":array(
             //             {
             //                 "assetCode":"BTT",
+            //                 "displayName" => "BTT",
             //                 "borrowAssetCode":"BTT-B",
             //                 "interestAssetCode":"BTT-I",
             //                 "nativeScale":0,
@@ -530,12 +540,13 @@ class ascendex extends Exchange {
             //         "data":array(
             //             {
             //                 "assetCode":"LTCBULL",
+            //                 "displayName" => "LTCBULL",
             //                 "nativeScale":4,
             //                 "numConfirmations":20,
             //                 "withdrawFee":"0.2",
             //                 "minWithdrawalAmt":"1.0",
             //                 "statusCode":"Normal",
-            //                 "statusMessage":""
+            //                 "statusMessage":""  // hideFromWalletTx
             //             }
             //         )
             //     }
@@ -551,14 +562,30 @@ class ascendex extends Exchange {
             $ids = is_array($dataById) ? array_keys($dataById) : array();
             $result = array();
             for ($i = 0; $i < count($ids); $i++) {
-                $id = $ids[$i];
+                $id = $this->safe_string($ids, $i);
                 $currency = $dataById[$id];
                 $code = $this->safe_currency_code($id);
                 $scale = $this->safe_string_2($currency, 'precisionScale', 'nativeScale');
                 $precision = $this->parse_number($this->parse_precision($scale));
                 $fee = $this->safe_number_2($currency, 'withdrawFee', 'withdrawalFee');
-                $status = $this->safe_string_2($currency, 'status', 'statusCode');
+                $status = $this->safe_string($currency, 'status');
+                $statusCode = $this->safe_string($currency, 'statusCode');
                 $active = ($status === 'Normal');
+                $depositEnabled = null;
+                $withdrawEnabled = null;
+                if ($status === 'Delisted' || $statusCode === 'hideFromWalletTx') {
+                    $depositEnabled = false;
+                    $withdrawEnabled = false;
+                } elseif ($status === 'Normal') {
+                    $depositEnabled = true;
+                    $withdrawEnabled = true;
+                } elseif ($status === 'NoTransaction' || $statusCode === 'NoTransaction') {
+                    $depositEnabled = true;
+                    $withdrawEnabled = false;
+                } elseif ($status === 'NoDeposit') {
+                    $depositEnabled = false;
+                    $withdrawEnabled = true;
+                }
                 $marginInside = (is_array($currency) && array_key_exists('borrowAssetCode', $currency));
                 $result[$code] = array(
                     'id' => $id,
@@ -568,8 +595,8 @@ class ascendex extends Exchange {
                     'margin' => $marginInside,
                     'name' => $this->safe_string($currency, 'assetName'),
                     'active' => $active,
-                    'deposit' => null,
-                    'withdraw' => null,
+                    'deposit' => $depositEnabled,
+                    'withdraw' => $withdrawEnabled,
                     'fee' => $fee,
                     'precision' => $precision,
                     'limits' => array(
@@ -582,7 +609,7 @@ class ascendex extends Exchange {
                             'max' => null,
                         ),
                     ),
-                    'networks' => array(),
+                    'networks' => array(), // todo
                 );
             }
             return $result;
@@ -787,7 +814,7 @@ class ascendex extends Exchange {
         }) ();
     }
 
-    public function fetch_time($params = array ()) {
+    public function fetch_time($params = array ()): PromiseInterface {
         return Async\async(function () use ($params) {
             /**
              * fetches the current integer timestamp in milliseconds from the ascendex server
@@ -2060,7 +2087,7 @@ class ascendex extends Exchange {
             //         "code" => 0,
             //         "data" => array(
             //             array(
-            //                 "avgPx" => "0",         // Average filled price of the $order
+            //                 "avgPx" => "0",        // Average filled price of the $order
             //                 "cumFee" => "0",       // cumulative fee paid for this $order
             //                 "cumFilledQty" => "0", // cumulative filled quantity
             //                 "errorCode" => "",     // error code; could be empty
@@ -2774,7 +2801,7 @@ class ascendex extends Exchange {
         );
     }
 
-    public function fetch_positions(?array $symbols = null, $params = array ()) {
+    public function fetch_positions(?array $symbols = null, $params = array ()): PromiseInterface {
         return Async\async(function () use ($symbols, $params) {
             /**
              * fetch all open positions

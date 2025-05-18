@@ -10,7 +10,7 @@ use ccxt\abstract\ellipx as Exchange;
 
 class ellipx extends Exchange {
 
-    public function describe() {
+    public function describe(): mixed {
         return $this->deep_extend(parent::describe(), array(
             'id' => 'ellipx',
             'name' => 'Ellipx',
@@ -255,12 +255,14 @@ class ellipx extends Exchange {
                         'marginMode' => false,
                         'trigger' => false,
                         'trailing' => false,
+                        'symbolRequired' => false,
                     ),
                     'fetchOpenOrders' => array(
                         'marginMode' => false,
                         'limit' => null,
                         'trigger' => false,
                         'trailing' => false,
+                        'symbolRequired' => true,
                     ),
                     'fetchOrders' => array(
                         'marginMode' => false,
@@ -269,6 +271,7 @@ class ellipx extends Exchange {
                         'untilDays' => null, // todo
                         'trigger' => false,
                         'trailing' => false,
+                        'symbolRequired' => true,
                     ),
                     'fetchClosedOrders' => null,
                     'fetchOHLCV' => array(
@@ -725,6 +728,7 @@ class ellipx extends Exchange {
          * @param {int} [$since] timestamp in ms of the earliest candle to fetch
          * @param {int} [$limit] the maximum amount of candles to fetch
          * @param {array} [$params] extra parameters specific to the API endpoint
+         * @param {int} [$params->until] timestamp in ms of the earliest candle to fetch
          * @return {OHLCV[]} A list of candles ordered, open, high, low, close, volume
          */
         $this->load_markets();
@@ -1663,7 +1667,7 @@ class ellipx extends Exchange {
         );
     }
 
-    public function fetch_trading_fee(?string $symbol = null, $params = array ()): array {
+    public function fetch_trading_fee(string $symbol, $params = array ()): array {
         /**
          * Fetches the current trading fees ($maker and $taker) applicable to the user.
          *
@@ -1904,10 +1908,11 @@ class ellipx extends Exchange {
         if ($v === null || $e === null) {
             return null;
         }
-        $preciseAmount = new Precise ($v);
-        $preciseAmount->decimals = $e;
-        $preciseAmount->reduce ();
-        return (string) $preciseAmount;
+        $precise = new Precise ($v);
+        $precise->decimals = $e;
+        $precise->reduce ();
+        $amountString = (string) $precise;
+        return $amountString;
     }
 
     public function to_amount(float $amount, float $precision): array {

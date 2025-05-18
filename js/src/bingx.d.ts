@@ -14,7 +14,7 @@ export default class bingx extends Exchange {
      * @param {object} [params] extra parameters specific to the exchange API endpoint
      * @returns {int} the current integer timestamp in milliseconds from the bingx server
      */
-    fetchTime(params?: {}): Promise<number>;
+    fetchTime(params?: {}): Promise<Int>;
     /**
      * @method
      * @name bingx#fetchCurrencies
@@ -24,7 +24,7 @@ export default class bingx extends Exchange {
      * @returns {object} an associative dictionary of currencies
      */
     fetchCurrencies(params?: {}): Promise<Currencies>;
-    fetchSpotMarkets(params: any): Promise<import("./base/types.js").MarketInterface[]>;
+    fetchSpotMarkets(params: any): Promise<Market[]>;
     fetchSwapMarkets(params: any): Promise<import("./base/types.js").MarketInterface[]>;
     fetchInverseSwapMarkets(params: any): Promise<import("./base/types.js").MarketInterface[]>;
     parseMarket(market: Dict): Market;
@@ -635,7 +635,7 @@ export default class bingx extends Exchange {
      * @param {string} address the address to withdraw to
      * @param {string} [tag]
      * @param {object} [params] extra parameters specific to the exchange API endpoint
-     * @param {int} [params.walletType] 1 fund account, 2 standard account, 3 perpetual account
+     * @param {int} [params.walletType] 1 fund account, 2 standard account, 3 perpetual account, 15 spot account
      * @returns {object} a [transaction structure]{@link https://docs.ccxt.com/#/?id=transaction-structure}
      */
     withdraw(code: string, amount: number, address: string, tag?: any, params?: {}): Promise<Transaction>;
@@ -760,6 +760,7 @@ export default class bingx extends Exchange {
      */
     fetchTradingFee(symbol: string, params?: {}): Promise<TradingFeeInterface>;
     parseTradingFee(fee: Dict, market?: Market): TradingFeeInterface;
+    customEncode(params: any): any;
     sign(path: any, section?: string, method?: string, params?: {}, headers?: any, body?: any): {
         url: string;
         method: string;

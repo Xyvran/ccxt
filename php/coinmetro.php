@@ -10,7 +10,7 @@ use ccxt\abstract\coinmetro as Exchange;
 
 class coinmetro extends Exchange {
 
-    public function describe() {
+    public function describe(): mixed {
         return $this->deep_extend(parent::describe(), array(
             'id' => 'coinmetro',
             'name' => 'Coinmetro',
@@ -207,7 +207,7 @@ class coinmetro extends Exchange {
             // exchange-specific options
             'options' => array(
                 'currenciesByIdForParseMarket' => null,
-                'currencyIdsListForParseMarket' => null,
+                'currencyIdsListForParseMarket' => array( 'QRDO' ),
             ),
             'features' => array(
                 'spot' => array(
@@ -243,17 +243,20 @@ class coinmetro extends Exchange {
                         'limit' => null,
                         'daysBack' => 100000,
                         'untilDays' => null,
+                        'symbolRequired' => false,
                     ),
                     'fetchOrder' => array(
                         'marginMode' => false,
                         'trigger' => false,
                         'trailing' => false,
+                        'symbolRequired' => false,
                     ),
                     'fetchOpenOrders' => array(
                         'marginMode' => false,
                         'limit' => null,
                         'trigger' => false,
                         'trailing' => false,
+                        'symbolRequired' => false,
                     ),
                     'fetchOrders' => array(
                         'marginMode' => false,
@@ -262,6 +265,7 @@ class coinmetro extends Exchange {
                         'untilDays' => null,
                         'trigger' => false,
                         'trailing' => false,
+                        'symbolRequired' => false,
                     ),
                     'fetchClosedOrders' => null,
                     'fetchOHLCV' => array(
@@ -372,24 +376,34 @@ class coinmetro extends Exchange {
             $currency = $response[$i];
             $id = $this->safe_string($currency, 'symbol');
             $code = $this->safe_currency_code($id);
-            $withdraw = $this->safe_value($currency, 'canWithdraw');
-            $deposit = $this->safe_value($currency, 'canDeposit');
-            $canTrade = $this->safe_value($currency, 'canTrade');
-            $active = $canTrade ? $withdraw : true;
-            $minAmount = $this->safe_number($currency, 'minQty');
+            $typeRaw = $this->safe_string($currency, 'type');
+            $type = null;
+            if ($typeRaw === 'coin' || $typeRaw === 'token' || $typeRaw === 'erc20') {
+                $type = 'crypto';
+            } elseif ($typeRaw === 'fiat') {
+                $type = 'fiat';
+            }
+            $precisionDigits = $this->safe_string_2($currency, 'digits', 'notabeneDecimals');
             $result[$code] = $this->safe_currency_structure(array(
                 'id' => $id,
                 'code' => $code,
                 'name' => $code,
+                'type' => $type,
                 'info' => $currency,
-                'active' => $active,
-                'deposit' => $deposit,
-                'withdraw' => $withdraw,
+                'active' => $this->safe_bool($currency, 'canTrade'),
+                'deposit' => $this->safe_bool($currency, 'canDeposit'),
+                'withdraw' => $this->safe_bool($currency, 'canWithdraw'),
                 'fee' => null,
-                'precision' => $this->parse_number($this->parse_precision($this->safe_string($currency, 'digits'))),
+                'precision' => $this->parse_number($this->parse_precision($precisionDigits)),
                 'limits' => array(
-                    'amount' => array( 'min' => $minAmount, 'max' => null ),
-                    'withdraw' => array( 'min' => null, 'max' => null ),
+                    'amount' => array(
+                        'min' => $this->safe_number($currency, 'minQty'),
+                        'max' => null,
+                    ),
+                    'withdraw' => array(
+                        'min' => null,
+                        'max' => null,
+                    ),
                 ),
                 'networks' => array(),
             ));
@@ -397,7 +411,12 @@ class coinmetro extends Exchange {
         if ($this->safe_value($this->options, 'currenciesByIdForParseMarket') === null) {
             $currenciesById = $this->index_by($result, 'id');
             $this->options['currenciesByIdForParseMarket'] = $currenciesById;
-            $this->options['currencyIdsListForParseMarket'] = is_array($currenciesById) ? array_keys($currenciesById) : array();
+            $currentCurrencyIdsList = $this->safe_list($this->options, 'currencyIdsListForParseMarket', array());
+            $currencyIdsList = is_array($currenciesById) ? array_keys($currenciesById) : array();
+            for ($i = 0; $i < count($currencyIdsList); $i++) {
+                $currentCurrencyIdsList[] = $currencyIdsList[$i];
+            }
+            $this->options['currencyIdsListForParseMarket'] = $currentCurrencyIdsList;
         }
         return $result;
     }
@@ -501,10 +520,22 @@ class coinmetro extends Exchange {
         $baseId = null;
         $quoteId = null;
         $currencyIds = $this->safe_value($this->options, 'currencyIdsListForParseMarket', array());
+        // Bubble sort by length (longest first)
+        $currencyIdsLength = count($currencyIds);
+        for ($i = 0; $i < $currencyIdsLength; $i++) {
+            for ($j = 0; $j < $currencyIdsLength - $i - 1; $j++) {
+                $a = $currencyIds[$j];
+                $b = $currencyIds[$j + 1];
+                if (strlen($a) < strlen($b)) {
+                    $currencyIds[$j] = $b;
+                    $currencyIds[$j + 1] = $a;
+                }
+            }
+        }
         for ($i = 0; $i < count($currencyIds); $i++) {
             $currencyId = $currencyIds[$i];
             $entryIndex = mb_strpos($marketId, $currencyId);
-            if ($entryIndex !== -1) {
+            if ($entryIndex === 0) {
                 $restId = str_replace($currencyId, '', $marketId);
                 if ($this->in_array($restId, $currencyIds)) {
                     if ($entryIndex === 0) {
@@ -1286,9 +1317,9 @@ class coinmetro extends Exchange {
         $request = array(
         );
         $request['orderType'] = $type;
-        $precisedAmount = null;
+        $formattedAmount = null;
         if ($amount !== null) {
-            $precisedAmount = $this->amount_to_precision($symbol, $amount);
+            $formattedAmount = $this->amount_to_precision($symbol, $amount);
         }
         $cost = $this->safe_value($params, 'cost');
         $params = $this->omit($params, 'cost');
@@ -1296,7 +1327,7 @@ class coinmetro extends Exchange {
             if (($price === null) && ($cost === null)) {
                 throw new ArgumentsRequired($this->id . ' createOrder() requires a $price or $params->cost argument for a ' . $type . ' order');
             } elseif (($price !== null) && ($amount !== null)) {
-                $costString = Precise::string_mul($this->number_to_string($price), $this->number_to_string($precisedAmount));
+                $costString = Precise::string_mul($this->number_to_string($price), $this->number_to_string($formattedAmount));
                 $cost = $this->parse_to_numeric($costString);
             }
         }
@@ -1305,9 +1336,9 @@ class coinmetro extends Exchange {
             $precisedCost = $this->cost_to_precision($symbol, $cost);
         }
         if ($side === 'sell') {
-            $request = $this->handle_create_order_side($market['baseId'], $market['quoteId'], $precisedAmount, $precisedCost, $request);
+            $request = $this->handle_create_order_side($market['baseId'], $market['quoteId'], $formattedAmount, $precisedCost, $request);
         } elseif ($side === 'buy') {
-            $request = $this->handle_create_order_side($market['quoteId'], $market['baseId'], $precisedCost, $precisedAmount, $request);
+            $request = $this->handle_create_order_side($market['quoteId'], $market['baseId'], $precisedCost, $formattedAmount, $request);
         }
         $timeInForce = $this->safe_value($params, 'timeInForce');
         if ($timeInForce !== null) {

@@ -15,7 +15,7 @@ import type { Balances, Bool, Dict, Int, Market, Num, OHLCV, Order, OrderBook, O
  * @augments Exchange
  */
 export default class btcturk extends Exchange {
-    describe () {
+    describe (): any {
         return this.deepExtend (super.describe (), {
             'id': 'btcturk',
             'name': 'BTCTurk',
@@ -163,6 +163,7 @@ export default class btcturk extends Exchange {
                         'limit': 100,
                         'daysBack': 100000,
                         'untilDays': 30,
+                        'symbolRequired': true,
                     },
                     'fetchOrder': undefined,
                     'fetchOpenOrders': {
@@ -170,6 +171,7 @@ export default class btcturk extends Exchange {
                         'limit': undefined,
                         'trigger': false,
                         'trailing': false,
+                        'symbolRequired': true,
                     },
                     'fetchOrders': {
                         'marginMode': false,
@@ -178,6 +180,7 @@ export default class btcturk extends Exchange {
                         'untilDays': 30,
                         'trigger': false,
                         'trailing': false,
+                        'symbolRequired': true,
                     },
                     'fetchClosedOrders': undefined,
                     'fetchOHLCV': {
@@ -242,7 +245,7 @@ export default class btcturk extends Exchange {
         //                            "minPrice": "0.0000000000001",
         //                            "maxPrice": "10000000",
         //                            "tickSize": "10",
-        //                            "minExchangeValue": "99.91",
+        //                            "minExchangeValue": "99.92",
         //                            "minAmount": null,
         //                            "maxAmount": null
         //                        }

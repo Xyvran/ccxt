@@ -12,13 +12,13 @@ use ccxt\ArgumentsRequired;
 use ccxt\BadRequest;
 use ccxt\NotSupported;
 use ccxt\Precise;
-use React\Async;
-use React\Promise;
-use React\Promise\PromiseInterface;
+use \React\Async;
+use \React\Promise;
+use \React\Promise\PromiseInterface;
 
 class oxfun extends Exchange {
 
-    public function describe() {
+    public function describe(): mixed {
         return $this->deep_extend(parent::describe(), array(
             'id' => 'oxfun',
             'name' => 'OXFUN',
@@ -72,7 +72,7 @@ class oxfun extends Exchange {
                 'fetchDepositWithdrawFee' => false,
                 'fetchDepositWithdrawFees' => false,
                 'fetchFundingHistory' => true,
-                'fetchFundingRate' => 'emulated',
+                'fetchFundingRate' => true,
                 'fetchFundingRateHistory' => true,
                 'fetchFundingRates' => true,
                 'fetchIndexOHLCV' => false,
@@ -121,6 +121,7 @@ class oxfun extends Exchange {
                 'reduceMargin' => false,
                 'repayCrossMargin' => false,
                 'repayIsolatedMargin' => false,
+                'sandbox' => true,
                 'setLeverage' => false,
                 'setMargin' => false,
                 'setMarginMode' => false,
@@ -245,6 +246,74 @@ class oxfun extends Exchange {
                     'Base' => 'BASE',
                     'BNBSmartChain' => 'BNB',
                     'Optimism' => 'OPTIMISM',
+                ),
+            ),
+            'features' => array(
+                'default' => array(
+                    'sandbox' => true,
+                    'createOrder' => array(
+                        'marginMode' => false,
+                        'triggerPrice' => true,
+                        'triggerDirection' => false,
+                        'triggerPriceType' => null,
+                        'stopLossPrice' => false, // todo
+                        'takeProfitPrice' => false, // todo
+                        'attachedStopLossTakeProfit' => null,
+                        'timeInForce' => array(
+                            'IOC' => true,
+                            'FOK' => true,
+                            'PO' => true,
+                            'GTD' => false,
+                        ),
+                        'hedged' => false,
+                        'trailing' => false,
+                        'leverage' => false,
+                        'marketBuyByCost' => true,
+                        'marketBuyRequiresPrice' => false,
+                        'selfTradePrevention' => true, // todo
+                        'iceberg' => true, // todo
+                    ),
+                    'createOrders' => array(
+                        'max' => 10, // todo
+                    ),
+                    'fetchMyTrades' => array(
+                        'marginMode' => false,
+                        'limit' => 500,
+                        'daysBack' => 100000, // todo
+                        'untilDays' => 7,
+                        'symbolRequired' => false,
+                    ),
+                    'fetchOrder' => array(
+                        'marginMode' => false,
+                        'trigger' => false,
+                        'trailing' => false,
+                        'symbolRequired' => false,
+                    ),
+                    'fetchOpenOrders' => array(
+                        'marginMode' => false,
+                        'limit' => null,
+                        'trigger' => false,
+                        'trailing' => false,
+                        'symbolRequired' => false,
+                    ),
+                    'fetchOrders' => null,
+                    'fetchClosedOrders' => null, // todo?
+                    'fetchOHLCV' => array(
+                        'limit' => 500,
+                    ),
+                ),
+                'spot' => array(
+                    'extends' => 'default',
+                ),
+                'swap' => array(
+                    'linear' => array(
+                        'extends' => 'default',
+                    ),
+                    'inverse' => null,
+                ),
+                'future' => array(
+                    'linear' => null,
+                    'inverse' => null,
                 ),
             ),
             'exceptions' => array(
@@ -1059,6 +1128,29 @@ class oxfun extends Exchange {
             //
             $data = $this->safe_list($response, 'data', array());
             return $this->parse_funding_rates($data, $symbols);
+        }) ();
+    }
+
+    public function fetch_funding_rate(string $symbol, $params = array ()): PromiseInterface {
+        return Async\async(function () use ($symbol, $params) {
+            /**
+             * fetch the current funding rates for a $symbol
+             *
+             * @see https://docs.ox.fun/?json#get-v3-funding-estimates
+             *
+             * @param {string} $symbol unified market symbols
+             * @param {array} [$params] extra parameters specific to the exchange API endpoint
+             * @return {Order[]} an array of ~@link https://docs.ccxt.com/#/?id=funding-rate-structure funding rate structures~
+             */
+            Async\await($this->load_markets());
+            $request = array(
+                'marketCode' => $this->market_id($symbol),
+            );
+            $response = Async\await($this->publicGetV3FundingEstimates ($this->extend($request, $params)));
+            //
+            $data = $this->safe_list($response, 'data', array());
+            $first = $this->safe_dict($data, 0, array());
+            return $this->parse_funding_rate($first, $this->market($symbol));
         }) ();
     }
 
@@ -2179,7 +2271,7 @@ class oxfun extends Exchange {
         }) ();
     }
 
-    public function fetch_positions(?array $symbols = null, $params = array ()) {
+    public function fetch_positions(?array $symbols = null, $params = array ()): PromiseInterface {
         return Async\async(function () use ($symbols, $params) {
             /**
              * fetch all open $positions
@@ -2987,7 +3079,7 @@ class oxfun extends Exchange {
                 'AccessKey' => $this->apiKey,
                 'Timestamp' => $datetime,
                 'Signature' => $signature,
-                'Nonce' => $nonce,
+                'Nonce' => (string) $nonce,
             );
         }
         return array( 'url' => $url, 'method' => $method, 'body' => $body, 'headers' => $headers );

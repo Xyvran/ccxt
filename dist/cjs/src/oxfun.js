@@ -6,7 +6,7 @@ var errors = require('./base/errors.js');
 var number = require('./base/functions/number.js');
 var sha256 = require('./static_dependencies/noble-hashes/sha256.js');
 
-// ----------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
 //  ---------------------------------------------------------------------------
 /**
  * @class oxfun
@@ -67,7 +67,7 @@ class oxfun extends oxfun$1 {
                 'fetchDepositWithdrawFee': false,
                 'fetchDepositWithdrawFees': false,
                 'fetchFundingHistory': true,
-                'fetchFundingRate': 'emulated',
+                'fetchFundingRate': true,
                 'fetchFundingRateHistory': true,
                 'fetchFundingRates': true,
                 'fetchIndexOHLCV': false,
@@ -116,6 +116,7 @@ class oxfun extends oxfun$1 {
                 'reduceMargin': false,
                 'repayCrossMargin': false,
                 'repayIsolatedMargin': false,
+                'sandbox': true,
                 'setLeverage': false,
                 'setMargin': false,
                 'setMarginMode': false,
@@ -240,6 +241,74 @@ class oxfun extends oxfun$1 {
                     'Base': 'BASE',
                     'BNBSmartChain': 'BNB',
                     'Optimism': 'OPTIMISM',
+                },
+            },
+            'features': {
+                'default': {
+                    'sandbox': true,
+                    'createOrder': {
+                        'marginMode': false,
+                        'triggerPrice': true,
+                        'triggerDirection': false,
+                        'triggerPriceType': undefined,
+                        'stopLossPrice': false,
+                        'takeProfitPrice': false,
+                        'attachedStopLossTakeProfit': undefined,
+                        'timeInForce': {
+                            'IOC': true,
+                            'FOK': true,
+                            'PO': true,
+                            'GTD': false,
+                        },
+                        'hedged': false,
+                        'trailing': false,
+                        'leverage': false,
+                        'marketBuyByCost': true,
+                        'marketBuyRequiresPrice': false,
+                        'selfTradePrevention': true,
+                        'iceberg': true, // todo
+                    },
+                    'createOrders': {
+                        'max': 10, // todo
+                    },
+                    'fetchMyTrades': {
+                        'marginMode': false,
+                        'limit': 500,
+                        'daysBack': 100000,
+                        'untilDays': 7,
+                        'symbolRequired': false,
+                    },
+                    'fetchOrder': {
+                        'marginMode': false,
+                        'trigger': false,
+                        'trailing': false,
+                        'symbolRequired': false,
+                    },
+                    'fetchOpenOrders': {
+                        'marginMode': false,
+                        'limit': undefined,
+                        'trigger': false,
+                        'trailing': false,
+                        'symbolRequired': false,
+                    },
+                    'fetchOrders': undefined,
+                    'fetchClosedOrders': undefined,
+                    'fetchOHLCV': {
+                        'limit': 500,
+                    },
+                },
+                'spot': {
+                    'extends': 'default',
+                },
+                'swap': {
+                    'linear': {
+                        'extends': 'default',
+                    },
+                    'inverse': undefined,
+                },
+                'future': {
+                    'linear': undefined,
+                    'inverse': undefined,
                 },
             },
             'exceptions': {
@@ -1031,6 +1100,26 @@ class oxfun extends oxfun$1 {
         //
         const data = this.safeList(response, 'data', []);
         return this.parseFundingRates(data, symbols);
+    }
+    /**
+     * @method
+     * @name oxfun#fetchFundingRate
+     * @description fetch the current funding rates for a symbol
+     * @see https://docs.ox.fun/?json#get-v3-funding-estimates
+     * @param {string} symbol unified market symbols
+     * @param {object} [params] extra parameters specific to the exchange API endpoint
+     * @returns {Order[]} an array of [funding rate structures]{@link https://docs.ccxt.com/#/?id=funding-rate-structure}
+     */
+    async fetchFundingRate(symbol, params = {}) {
+        await this.loadMarkets();
+        const request = {
+            'marketCode': this.marketId(symbol),
+        };
+        const response = await this.publicGetV3FundingEstimates(this.extend(request, params));
+        //
+        const data = this.safeList(response, 'data', []);
+        const first = this.safeDict(data, 0, {});
+        return this.parseFundingRate(first, this.market(symbol));
     }
     parseFundingRate(fundingRate, market = undefined) {
         //
@@ -2878,7 +2967,7 @@ class oxfun extends oxfun$1 {
                 'AccessKey': this.apiKey,
                 'Timestamp': datetime,
                 'Signature': signature,
-                'Nonce': nonce,
+                'Nonce': nonce.toString(),
             };
         }
         return { 'url': url, 'method': method, 'body': body, 'headers': headers };

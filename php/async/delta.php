@@ -12,12 +12,12 @@ use ccxt\ArgumentsRequired;
 use ccxt\BadRequest;
 use ccxt\BadSymbol;
 use ccxt\Precise;
-use React\Async;
-use React\Promise\PromiseInterface;
+use \React\Async;
+use \React\Promise\PromiseInterface;
 
 class delta extends Exchange {
 
-    public function describe() {
+    public function describe(): mixed {
         return $this->deep_extend(parent::describe(), array(
             'id' => 'delta',
             'name' => 'Delta Exchange',
@@ -263,6 +263,7 @@ class delta extends Exchange {
                         'limit' => 100, // todo => revise
                         'daysBack' => 100000,
                         'untilDays' => 100000,
+                        'symbolRequired' => false,
                     ),
                     'fetchOrder' => null,
                     'fetchOpenOrders' => array(
@@ -270,6 +271,7 @@ class delta extends Exchange {
                         'limit' => 100, // todo => revise
                         'trigger' => false,
                         'trailing' => false,
+                        'symbolRequired' => false,
                     ),
                     'fetchOrders' => null,
                     'fetchClosedOrders' => array(
@@ -280,6 +282,7 @@ class delta extends Exchange {
                         'untilDays' => 100000,
                         'trigger' => false,
                         'trailing' => false,
+                        'symbolRequired' => false,
                     ),
                     'fetchOHLCV' => array(
                         'limit' => 2000, // todo => recheck
@@ -350,6 +353,9 @@ class delta extends Exchange {
             $expiry = $this->safe_string($optionParts, 3);
             $optionType = $this->safe_string($optionParts, 0);
         }
+        if ($expiry !== null) {
+            $expiry = mb_substr($expiry, 4) . mb_substr($expiry, 2, 4 - 2) . mb_substr($expiry, 0, 2 - 0);
+        }
         $settle = $quote;
         $strike = $this->safe_string($optionParts, 2);
         $datetime = $this->convert_expire_date($expiry);
@@ -409,7 +415,7 @@ class delta extends Exchange {
         return parent::safe_market($marketId, $market, $delimiter, $marketType);
     }
 
-    public function fetch_time($params = array ()) {
+    public function fetch_time($params = array ()): PromiseInterface {
         return Async\async(function () use ($params) {
             /**
              * fetches the current integer timestamp in milliseconds from the exchange server
@@ -570,6 +576,7 @@ class delta extends Exchange {
                         ),
                     ),
                     'networks' => array(),
+                    'type' => 'crypto',
                 );
             }
             return $result;
@@ -1720,7 +1727,7 @@ class delta extends Exchange {
         }) ();
     }
 
-    public function fetch_positions(?array $symbols = null, $params = array ()) {
+    public function fetch_positions(?array $symbols = null, $params = array ()): PromiseInterface {
         return Async\async(function () use ($symbols, $params) {
             /**
              * fetch all open positions

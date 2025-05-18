@@ -10,7 +10,7 @@ use ccxt\abstract\coinsph as Exchange;
 
 class coinsph extends Exchange {
 
-    public function describe() {
+    public function describe(): mixed {
         return $this->deep_extend(parent::describe(), array(
             'id' => 'coinsph',
             'name' => 'Coins.ph',
@@ -324,17 +324,20 @@ class coinsph extends Exchange {
                         'limit' => 1000,
                         'daysBack' => 100000,
                         'untilDays' => 100000, // todo implement
+                        'symbolRequired' => true,
                     ),
                     'fetchOrder' => array(
                         'marginMode' => false,
                         'trigger' => false,
                         'trailing' => false,
+                        'symbolRequired' => false,
                     ),
                     'fetchOpenOrders' => array(
                         'marginMode' => false,
                         'limit' => null,
                         'trigger' => false,
                         'trailing' => false,
+                        'symbolRequired' => false,
                     ),
                     'fetchOrders' => null,
                     'fetchClosedOrders' => array(
@@ -345,6 +348,7 @@ class coinsph extends Exchange {
                         'untilDays' => 100000,
                         'trigger' => false,
                         'trailing' => false,
+                        'symbolRequired' => true,
                     ),
                     'fetchOHLCV' => array(
                         'limit' => 1000,
@@ -525,7 +529,7 @@ class coinsph extends Exchange {
         );
     }
 
-    public function fetch_time($params = array ()) {
+    public function fetch_time($params = array ()): ?int {
         /**
          * fetches the current integer timestamp in milliseconds from the exchange server
          *
@@ -875,30 +879,39 @@ class coinsph extends Exchange {
          * @param {int} [$since] timestamp in ms of the earliest candle to fetch
          * @param {int} [$limit] the maximum amount of candles to fetch (default 500, max 1000)
          * @param {array} [$params] extra parameters specific to the exchange API endpoint
+         * @param {int} [$params->until] timestamp in ms of the latest candle to fetch
          * @return {int[][]} A list of candles ordered, open, high, low, close, volume
          */
         $this->load_markets();
         $market = $this->market($symbol);
         $interval = $this->safe_string($this->timeframes, $timeframe);
+        $until = $this->safe_integer($params, 'until');
         $request = array(
             'symbol' => $market['id'],
             'interval' => $interval,
         );
+        if ($limit === null) {
+            $limit = 1000;
+        }
         if ($since !== null) {
             $request['startTime'] = $since;
-            $request['limit'] = 1000;
             // $since work properly only when it is "younger" than last "limit" candle
-            if ($limit !== null) {
-                $duration = $this->parse_timeframe($timeframe) * 1000;
-                $request['endTime'] = $this->sum($since, $duration * ($limit - 1));
+            if ($until !== null) {
+                $request['endTime'] = $until;
             } else {
-                $request['endTime'] = $this->milliseconds();
+                $duration = $this->parse_timeframe($timeframe) * 1000;
+                $endTimeByLimit = $this->sum($since, $duration * ($limit - 1));
+                $now = $this->milliseconds();
+                $request['endTime'] = min ($endTimeByLimit, $now);
             }
-        } else {
-            if ($limit !== null) {
-                $request['limit'] = $limit;
-            }
+        } elseif ($until !== null) {
+            $request['endTime'] = $until;
+            // $since work properly only when it is "younger" than last "limit" candle
+            $duration = $this->parse_timeframe($timeframe) * 1000;
+            $request['startTime'] = $until - ($duration * ($limit - 1));
         }
+        $request['limit'] = $limit;
+        $params = $this->omit($params, 'until');
         $response = $this->publicGetOpenapiQuoteV1Klines ($this->extend($request, $params));
         //
         //     array(

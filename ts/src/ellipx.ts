@@ -17,7 +17,7 @@ import { eddsa } from './base/functions/crypto.js';
  * @augments Exchange
  */
 export default class ellipx extends Exchange {
-    describe () {
+    describe (): any {
         return this.deepExtend (super.describe (), {
             'id': 'ellipx',
             'name': 'Ellipx',
@@ -262,12 +262,14 @@ export default class ellipx extends Exchange {
                         'marginMode': false,
                         'trigger': false,
                         'trailing': false,
+                        'symbolRequired': false,
                     },
                     'fetchOpenOrders': {
                         'marginMode': false,
                         'limit': undefined,
                         'trigger': false,
                         'trailing': false,
+                        'symbolRequired': true,
                     },
                     'fetchOrders': {
                         'marginMode': false,
@@ -276,6 +278,7 @@ export default class ellipx extends Exchange {
                         'untilDays': undefined, // todo
                         'trigger': false,
                         'trailing': false,
+                        'symbolRequired': true,
                     },
                     'fetchClosedOrders': undefined,
                     'fetchOHLCV': {
@@ -731,6 +734,7 @@ export default class ellipx extends Exchange {
      * @param {int} [since] timestamp in ms of the earliest candle to fetch
      * @param {int} [limit] the maximum amount of candles to fetch
      * @param {object} [params] extra parameters specific to the API endpoint
+     * @param {int} [params.until] timestamp in ms of the earliest candle to fetch
      * @returns {OHLCV[]} A list of candles ordered as timestamp, open, high, low, close, volume
      */
     async fetchOHLCV (symbol: string, timeframe = '1m', since: Int = undefined, limit: Int = undefined, params = {}) {
@@ -1693,7 +1697,7 @@ export default class ellipx extends Exchange {
      *     'tierBased': false,    // indicates fees do not vary by volume tiers
      * }
      */
-    async fetchTradingFee (symbol: string = undefined, params = {}): Promise<TradingFeeInterface> {
+    async fetchTradingFee (symbol: string, params = {}): Promise<TradingFeeInterface> {
         await this.loadMarkets ();
         const response = await this.privateGetMarketTradeFeeQuery (params);
         //
@@ -1727,6 +1731,7 @@ export default class ellipx extends Exchange {
 
     /**
      * @method
+     * @name ellipx#withdraw
      * @description Make a withdrawal request
      * @see https://docs.google.com/document/d/1ZXzTQYffKE_EglTaKptxGQERRnunuLHEMmar7VC9syM/edit?tab=t.0#heading=h.zegupoa8g4t9
      * @param {string} code Currency code
@@ -1916,10 +1921,11 @@ export default class ellipx extends Exchange {
         if (v === undefined || e === undefined) {
             return undefined;
         }
-        const preciseAmount = new Precise (v);
-        preciseAmount.decimals = e;
-        preciseAmount.reduce ();
-        return preciseAmount.toString ();
+        const precise = new Precise (v);
+        precise.decimals = e;
+        precise.reduce ();
+        const amountString = precise.toString ();
+        return amountString;
     }
 
     toAmount (amount: number, precision: number): Dict {

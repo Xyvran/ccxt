@@ -60,7 +60,7 @@ public partial class oxfun : Exchange
                 { "fetchDepositWithdrawFee", false },
                 { "fetchDepositWithdrawFees", false },
                 { "fetchFundingHistory", true },
-                { "fetchFundingRate", "emulated" },
+                { "fetchFundingRate", true },
                 { "fetchFundingRateHistory", true },
                 { "fetchFundingRates", true },
                 { "fetchIndexOHLCV", false },
@@ -109,6 +109,7 @@ public partial class oxfun : Exchange
                 { "reduceMargin", false },
                 { "repayCrossMargin", false },
                 { "repayIsolatedMargin", false },
+                { "sandbox", true },
                 { "setLeverage", false },
                 { "setMargin", false },
                 { "setMarginMode", false },
@@ -224,6 +225,74 @@ public partial class oxfun : Exchange
                     { "Base", "BASE" },
                     { "BNBSmartChain", "BNB" },
                     { "Optimism", "OPTIMISM" },
+                } },
+            } },
+            { "features", new Dictionary<string, object>() {
+                { "default", new Dictionary<string, object>() {
+                    { "sandbox", true },
+                    { "createOrder", new Dictionary<string, object>() {
+                        { "marginMode", false },
+                        { "triggerPrice", true },
+                        { "triggerDirection", false },
+                        { "triggerPriceType", null },
+                        { "stopLossPrice", false },
+                        { "takeProfitPrice", false },
+                        { "attachedStopLossTakeProfit", null },
+                        { "timeInForce", new Dictionary<string, object>() {
+                            { "IOC", true },
+                            { "FOK", true },
+                            { "PO", true },
+                            { "GTD", false },
+                        } },
+                        { "hedged", false },
+                        { "trailing", false },
+                        { "leverage", false },
+                        { "marketBuyByCost", true },
+                        { "marketBuyRequiresPrice", false },
+                        { "selfTradePrevention", true },
+                        { "iceberg", true },
+                    } },
+                    { "createOrders", new Dictionary<string, object>() {
+                        { "max", 10 },
+                    } },
+                    { "fetchMyTrades", new Dictionary<string, object>() {
+                        { "marginMode", false },
+                        { "limit", 500 },
+                        { "daysBack", 100000 },
+                        { "untilDays", 7 },
+                        { "symbolRequired", false },
+                    } },
+                    { "fetchOrder", new Dictionary<string, object>() {
+                        { "marginMode", false },
+                        { "trigger", false },
+                        { "trailing", false },
+                        { "symbolRequired", false },
+                    } },
+                    { "fetchOpenOrders", new Dictionary<string, object>() {
+                        { "marginMode", false },
+                        { "limit", null },
+                        { "trigger", false },
+                        { "trailing", false },
+                        { "symbolRequired", false },
+                    } },
+                    { "fetchOrders", null },
+                    { "fetchClosedOrders", null },
+                    { "fetchOHLCV", new Dictionary<string, object>() {
+                        { "limit", 500 },
+                    } },
+                } },
+                { "spot", new Dictionary<string, object>() {
+                    { "extends", "default" },
+                } },
+                { "swap", new Dictionary<string, object>() {
+                    { "linear", new Dictionary<string, object>() {
+                        { "extends", "default" },
+                    } },
+                    { "inverse", null },
+                } },
+                { "future", new Dictionary<string, object>() {
+                    { "linear", null },
+                    { "inverse", null },
                 } },
             } },
             { "exceptions", new Dictionary<string, object>() {
@@ -1053,6 +1122,29 @@ public partial class oxfun : Exchange
         //
         object data = this.safeList(response, "data", new List<object>() {});
         return this.parseFundingRates(data, symbols);
+    }
+
+    /**
+     * @method
+     * @name oxfun#fetchFundingRate
+     * @description fetch the current funding rates for a symbol
+     * @see https://docs.ox.fun/?json#get-v3-funding-estimates
+     * @param {string} symbol unified market symbols
+     * @param {object} [params] extra parameters specific to the exchange API endpoint
+     * @returns {Order[]} an array of [funding rate structures]{@link https://docs.ccxt.com/#/?id=funding-rate-structure}
+     */
+    public async override Task<object> fetchFundingRate(object symbol, object parameters = null)
+    {
+        parameters ??= new Dictionary<string, object>();
+        await this.loadMarkets();
+        object request = new Dictionary<string, object>() {
+            { "marketCode", this.marketId(symbol) },
+        };
+        object response = await this.publicGetV3FundingEstimates(this.extend(request, parameters));
+        //
+        object data = this.safeList(response, "data", new List<object>() {});
+        object first = this.safeDict(data, 0, new Dictionary<string, object>() {});
+        return this.parseFundingRate(first, this.market(symbol));
     }
 
     public override object parseFundingRate(object fundingRate, object market = null)
@@ -3078,7 +3170,7 @@ public partial class oxfun : Exchange
                 { "AccessKey", this.apiKey },
                 { "Timestamp", datetime },
                 { "Signature", signature },
-                { "Nonce", nonce },
+                { "Nonce", ((object)nonce).ToString() },
             };
         }
         return new Dictionary<string, object>() {

@@ -180,6 +180,7 @@ public partial class delta : Exchange
                         { "limit", 100 },
                         { "daysBack", 100000 },
                         { "untilDays", 100000 },
+                        { "symbolRequired", false },
                     } },
                     { "fetchOrder", null },
                     { "fetchOpenOrders", new Dictionary<string, object>() {
@@ -187,6 +188,7 @@ public partial class delta : Exchange
                         { "limit", 100 },
                         { "trigger", false },
                         { "trailing", false },
+                        { "symbolRequired", false },
                     } },
                     { "fetchOrders", null },
                     { "fetchClosedOrders", new Dictionary<string, object>() {
@@ -197,6 +199,7 @@ public partial class delta : Exchange
                         { "untilDays", 100000 },
                         { "trigger", false },
                         { "trailing", false },
+                        { "symbolRequired", false },
                     } },
                     { "fetchOHLCV", new Dictionary<string, object>() {
                         { "limit", 2000 },
@@ -267,6 +270,10 @@ public partial class delta : Exchange
             bs = this.safeString(optionParts, 1);
             expiry = this.safeString(optionParts, 3);
             optionType = this.safeString(optionParts, 0);
+        }
+        if (isTrue(!isEqual(expiry, null)))
+        {
+            expiry = add(add(slice(expiry, 4, null), slice(expiry, 2, 4)), slice(expiry, 0, 2));
         }
         object settle = quote;
         object strike = this.safeString(optionParts, 2);
@@ -499,6 +506,7 @@ public partial class delta : Exchange
                     } },
                 } },
                 { "networks", new Dictionary<string, object>() {} },
+                { "type", "crypto" },
             };
         }
         return result;

@@ -21,7 +21,7 @@ from ccxt.base.precise import Precise
 
 class ellipx(Exchange, ImplicitAPI):
 
-    def describe(self):
+    def describe(self) -> Any:
         return self.deep_extend(super(ellipx, self).describe(), {
             'id': 'ellipx',
             'name': 'Ellipx',
@@ -266,12 +266,14 @@ class ellipx(Exchange, ImplicitAPI):
                         'marginMode': False,
                         'trigger': False,
                         'trailing': False,
+                        'symbolRequired': False,
                     },
                     'fetchOpenOrders': {
                         'marginMode': False,
                         'limit': None,
                         'trigger': False,
                         'trailing': False,
+                        'symbolRequired': True,
                     },
                     'fetchOrders': {
                         'marginMode': False,
@@ -280,6 +282,7 @@ class ellipx(Exchange, ImplicitAPI):
                         'untilDays': None,  # todo
                         'trigger': False,
                         'trailing': False,
+                        'symbolRequired': True,
                     },
                     'fetchClosedOrders': None,
                     'fetchOHLCV': {
@@ -722,6 +725,7 @@ class ellipx(Exchange, ImplicitAPI):
         :param int [since]: timestamp in ms of the earliest candle to fetch
         :param int [limit]: the maximum amount of candles to fetch
         :param dict [params]: extra parameters specific to the API endpoint
+        :param int [params.until]: timestamp in ms of the earliest candle to fetch
         :returns OHLCV[]: A list of candles ordered, open, high, low, close, volume
         """
         await self.load_markets()
@@ -1620,7 +1624,7 @@ class ellipx(Exchange, ImplicitAPI):
             'info': response,
         }
 
-    async def fetch_trading_fee(self, symbol: str = None, params={}) -> TradingFeeInterface:
+    async def fetch_trading_fee(self, symbol: str, params={}) -> TradingFeeInterface:
         """
         Fetches the current trading fees(maker and taker) applicable to the user.
 
@@ -1854,10 +1858,11 @@ class ellipx(Exchange, ImplicitAPI):
         e = self.safe_integer(amount, 'e', None)
         if v is None or e is None:
             return None
-        preciseAmount = Precise(v)
-        preciseAmount.decimals = e
-        preciseAmount.reduce()
-        return str(preciseAmount)
+        precise = Precise(v)
+        precise.decimals = e
+        precise.reduce()
+        amountString = str(precise)
+        return amountString
 
     def to_amount(self, amount: float, precision: float) -> dict:
         v = str(amount)
