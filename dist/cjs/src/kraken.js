@@ -7,7 +7,7 @@ var number = require('./base/functions/number.js');
 var sha256 = require('./static_dependencies/noble-hashes/sha256.js');
 var sha512 = require('./static_dependencies/noble-hashes/sha512.js');
 
-// ----------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
 //  ---------------------------------------------------------------------------
 /**
  * @class kraken
@@ -225,13 +225,13 @@ class kraken extends kraken$1 {
                 },
             },
             'commonCurrencies': {
+                // about X & Z prefixes and .S & .M suffixes, see comment under fetchCurrencies
                 'LUNA': 'LUNC',
                 'LUNA2': 'LUNA',
                 'REPV2': 'REP',
                 'REP': 'REPV1',
                 'UST': 'USTC',
                 'XBT': 'BTC',
-                'XBT.M': 'BTC.M',
                 'XDG': 'DOGE',
             },
             'options': {
@@ -458,17 +458,20 @@ class kraken extends kraken$1 {
                         'limit': undefined,
                         'daysBack': undefined,
                         'untilDays': undefined,
+                        'symbolRequired': false,
                     },
                     'fetchOrder': {
                         'marginMode': false,
                         'trigger': false,
                         'trailing': false,
+                        'symbolRequired': false,
                     },
                     'fetchOpenOrders': {
                         'marginMode': false,
                         'limit': undefined,
                         'trigger': false,
                         'trailing': false,
+                        'symbolRequired': false,
                     },
                     'fetchOrders': undefined,
                     'fetchClosedOrders': {
@@ -479,6 +482,7 @@ class kraken extends kraken$1 {
                         'untilDays': 100000,
                         'trigger': false,
                         'trailing': false,
+                        'symbolRequired': false,
                     },
                     'fetchOHLCV': {
                         'limit': 720,
@@ -767,9 +771,48 @@ class kraken extends kraken$1 {
         //     {
         //         "error": [],
         //         "result": {
-        //             "BCH": {
+        //             "ATOM": {
         //                 "aclass": "currency",
-        //                 "altname": "BCH",
+        //                 "altname": "ATOM",
+        //                 "collateral_value": "0.7",
+        //                 "decimals": 8,
+        //                 "display_decimals": 6,
+        //                 "margin_rate": 0.02,
+        //                 "status": "enabled",
+        //             },
+        //             "ATOM.S": {
+        //                 "aclass": "currency",
+        //                 "altname": "ATOM.S",
+        //                 "decimals": 8,
+        //                 "display_decimals": 6,
+        //                 "status": "enabled",
+        //             },
+        //             "XXBT": {
+        //                 "aclass": "currency",
+        //                 "altname": "XBT",
+        //                 "decimals": 10,
+        //                 "display_decimals": 5,
+        //                 "margin_rate": 0.01,
+        //                 "status": "enabled",
+        //             },
+        //             "XETH": {
+        //                 "aclass": "currency",
+        //                 "altname": "ETH",
+        //                 "decimals": 10,
+        //                 "display_decimals": 5
+        //                 "margin_rate": 0.02,
+        //                 "status": "enabled",
+        //             },
+        //             "XBT.M": {
+        //                 "aclass": "currency",
+        //                 "altname": "XBT.M",
+        //                 "decimals": 10,
+        //                 "display_decimals": 5
+        //                 "status": "enabled",
+        //             },
+        //             "ETH.M": {
+        //                 "aclass": "currency",
+        //                 "altname": "ETH.M",
         //                 "decimals": 10,
         //                 "display_decimals": 5
         //                 "status": "enabled",
@@ -788,16 +831,41 @@ class kraken extends kraken$1 {
             // see: https://support.kraken.com/hc/en-us/articles/201893608-What-are-the-withdrawal-fees-
             // to add support for multiple withdrawal/deposit methods and
             // differentiated fees for each particular method
-            const code = this.safeCurrencyCode(id);
+            //
+            // Notes about abbreviations:
+            // Z and X prefixes: https://support.kraken.com/hc/en-us/articles/360001206766-Bitcoin-currency-code-XBT-vs-BTC
+            // S and M suffixes: https://support.kraken.com/hc/en-us/articles/360039879471-What-is-Asset-S-and-Asset-M-
+            //
+            let code = this.safeCurrencyCode(id);
+            // the below can not be reliable done in `safeCurrencyCode`, so we have to do it here
+            if (id.indexOf('.') < 0) {
+                const altName = this.safeString(currency, 'altname');
+                // handle cases like below:
+                //
+                //  id   | altname
+                // ---------------
+                // XXBT  |  XBT
+                // ZUSD  |  USD
+                if (id !== altName && (id.startsWith('X') || id.startsWith('Z'))) {
+                    code = this.safeCurrencyCode(altName);
+                    // also, add map in commonCurrencies:
+                    this.commonCurrencies[id] = code;
+                }
+                else {
+                    code = this.safeCurrencyCode(id);
+                }
+            }
             const precision = this.parseNumber(this.parsePrecision(this.safeString(currency, 'decimals')));
             // assumes all currencies are active except those listed above
             const active = this.safeString(currency, 'status') === 'enabled';
+            const isFiat = code.indexOf('.HOLD') >= 0;
             result[code] = {
                 'id': id,
                 'code': code,
                 'info': currency,
                 'name': this.safeString(currency, 'altname'),
                 'active': active,
+                'type': isFiat ? 'fiat' : 'crypto',
                 'deposit': undefined,
                 'withdraw': undefined,
                 'fee': undefined,
@@ -816,6 +884,19 @@ class kraken extends kraken$1 {
             };
         }
         return result;
+    }
+    safeCurrencyCode(currencyId, currency = undefined) {
+        if (currencyId === undefined) {
+            return currencyId;
+        }
+        if (currencyId.indexOf('.') > 0) {
+            // if ID contains .M, .S or .F, then it can't contain X or Z prefix. in such case, ID equals to ALTNAME
+            const parts = currencyId.split('.');
+            const firstPart = this.safeString(parts, 0);
+            const secondPart = this.safeString(parts, 1);
+            return super.safeCurrencyCode(firstPart, currency) + '.' + secondPart;
+        }
+        return super.safeCurrencyCode(currencyId, currency);
     }
     /**
      * @method
@@ -972,9 +1053,9 @@ class kraken extends kraken$1 {
             'high': this.safeString(high, 1),
             'low': this.safeString(low, 1),
             'bid': this.safeString(bid, 0),
-            'bidVolume': undefined,
+            'bidVolume': this.safeString(bid, 2),
             'ask': this.safeString(ask, 0),
-            'askVolume': undefined,
+            'askVolume': this.safeString(ask, 2),
             'vwap': vwap,
             'open': this.safeString(ticker, 'o'),
             'close': last,
@@ -1516,7 +1597,7 @@ class kraken extends kraken$1 {
         const req = {
             'cost': cost,
         };
-        return await this.createOrder(symbol, 'market', side, 1, undefined, this.extend(req, params));
+        return await this.createOrder(symbol, 'market', side, cost, undefined, this.extend(req, params));
     }
     /**
      * @method
@@ -1565,6 +1646,8 @@ class kraken extends kraken$1 {
             'volume': this.amountToPrecision(symbol, amount),
         };
         const orderRequest = this.orderRequest('createOrder', symbol, type, request, amount, price, params);
+        const flags = this.safeString(orderRequest[0], 'oflags', '');
+        const isUsingCost = flags.indexOf('viqc') > -1;
         const response = await this.privatePostAddOrder(this.extend(orderRequest[0], orderRequest[1]));
         //
         //     {
@@ -1576,6 +1659,10 @@ class kraken extends kraken$1 {
         //     }
         //
         const result = this.safeDict(response, 'result');
+        result['usingCost'] = isUsingCost;
+        // it's impossible to know if the order was created using cost or base currency
+        // becuase kraken only returns something like this: { order: 'buy 10.00000000 LTCUSD @ market' }
+        // this usingCost flag is used to help the parsing but omited from the order
         return this.parseOrder(result);
     }
     findMarketByAltnameOrId(id) {
@@ -1668,22 +1755,15 @@ class kraken extends kraken$1 {
         //     }
         //
         //  ws - createOrder
-        //    {
-        //        "descr": 'sell 0.00010000 XBTUSDT @ market',
-        //        "event": 'addOrderStatus',
-        //        "reqid": 1,
-        //        "status": 'ok',
-        //        "txid": 'OAVXZH-XIE54-JCYYDG'
-        //    }
+        //     {
+        //         "order_id": "OXM2QD-EALR2-YBAVEU"
+        //     }
+        //
         //  ws - editOrder
-        //    {
-        //        "descr": "order edited price = 9000.00000000",
-        //        "event": "editOrderStatus",
-        //        "originaltxid": "O65KZW-J4AW3-VFS74A",
-        //        "reqid": 3,
-        //        "status": "ok",
-        //        "txid": "OTI672-HJFAO-XOIPPK"
-        //    }
+        //     {
+        //         "amend_id": "TJSMEH-AA67V-YUSQ6O",
+        //         "order_id": "OXM2QD-EALR2-YBAVEU"
+        //     }
         //
         //  {
         //      "error": [],
@@ -1751,6 +1831,8 @@ class kraken extends kraken$1 {
         //         "oflags": "fciq"
         //     }
         //
+        const isUsingCost = this.safeBool(order, 'usingCost', false);
+        order = this.omit(order, 'usingCost');
         const description = this.safeDict(order, 'descr', {});
         const orderDescriptionObj = this.safeDict(order, 'descr'); // can be null
         let orderDescription = undefined;
@@ -1765,11 +1847,17 @@ class kraken extends kraken$1 {
         let marketId = undefined;
         let price = undefined;
         let amount = undefined;
+        let cost = undefined;
         let triggerPrice = undefined;
         if (orderDescription !== undefined) {
             const parts = orderDescription.split(' ');
             side = this.safeString(parts, 0);
-            amount = this.safeString(parts, 1);
+            if (!isUsingCost) {
+                amount = this.safeString(parts, 1);
+            }
+            else {
+                cost = this.safeString(parts, 1);
+            }
             marketId = this.safeString(parts, 2);
             const part4 = this.safeString(parts, 4);
             const part5 = this.safeString(parts, 5);
@@ -1806,15 +1894,13 @@ class kraken extends kraken$1 {
         // kraken truncates the cost in the api response so we will ignore it and calculate it from average & filled
         // const cost = this.safeString (order, 'cost');
         price = this.safeString(description, 'price', price);
-        // when type = trailling stop returns price = '+50.0000%'
-        if ((price !== undefined) && price.endsWith('%')) {
+        // when type = trailing stop returns price = '+50.0000%'
+        if ((price !== undefined) && (price.endsWith('%') || Precise["default"].stringEquals(price, '0.00000') || Precise["default"].stringEquals(price, '0'))) {
             price = undefined; // this is not the price we want
         }
-        if ((price === undefined) || Precise["default"].stringEquals(price, '0')) {
+        if (price === undefined) {
             price = this.safeString(description, 'price2');
-        }
-        if ((price === undefined) || Precise["default"].stringEquals(price, '0')) {
-            price = this.safeString(order, 'price', price);
+            price = this.safeString2(order, 'limitprice', 'price', price);
         }
         const flags = this.safeString(order, 'oflags', '');
         let isPostOnly = flags.indexOf('post') > -1;
@@ -1836,7 +1922,7 @@ class kraken extends kraken$1 {
             }
         }
         const status = this.parseOrderStatus(this.safeString(order, 'status'));
-        let id = this.safeStringN(order, ['id', 'txid', 'amend_id']);
+        let id = this.safeStringN(order, ['id', 'txid', 'order_id', 'amend_id']);
         if ((id === undefined) || (id.startsWith('['))) {
             const txid = this.safeList(order, 'txid');
             id = this.safeString(txid, 0);
@@ -1904,7 +1990,7 @@ class kraken extends kraken$1 {
             'triggerPrice': triggerPrice,
             'takeProfitPrice': takeProfitPrice,
             'stopLossPrice': stopLossPrice,
-            'cost': undefined,
+            'cost': cost,
             'amount': amount,
             'filled': filled,
             'average': average,
@@ -2481,7 +2567,7 @@ class kraken extends kraken$1 {
      */
     async cancelAllOrdersAfter(timeout, params = {}) {
         if (timeout > 86400000) {
-            throw new errors.BadRequest(this.id + 'cancelAllOrdersAfter timeout should be less than 86400000 milliseconds');
+            throw new errors.BadRequest(this.id + ' cancelAllOrdersAfter timeout should be less than 86400000 milliseconds');
         }
         await this.loadMarkets();
         const request = {

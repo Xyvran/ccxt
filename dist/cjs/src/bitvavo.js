@@ -225,17 +225,20 @@ class bitvavo extends bitvavo$1 {
                         'limit': 1000,
                         'daysBack': 100000,
                         'untilDays': 100000,
+                        'symbolRequired': true,
                     },
                     'fetchOrder': {
                         'marginMode': false,
                         'trigger': false,
                         'trailing': false,
+                        'symbolRequired': true,
                     },
                     'fetchOpenOrders': {
                         'marginMode': false,
                         'limit': undefined,
                         'trigger': false,
                         'trailing': false,
+                        'symbolRequired': true,
                     },
                     'fetchOrders': {
                         'marginMode': true,
@@ -244,6 +247,7 @@ class bitvavo extends bitvavo$1 {
                         'untilDays': 100000,
                         'trigger': false,
                         'trailing': false,
+                        'symbolRequired': true,
                     },
                     'fetchClosedOrders': undefined,
                     'fetchOHLCV': {
@@ -339,6 +343,8 @@ class bitvavo extends bitvavo$1 {
                     'ERC20': 'ETH',
                     'TRC20': 'TRX',
                 },
+                'operatorId': undefined,
+                'fiatCurrencies': ['EUR'], // only fiat atm
             },
             'precisionMode': number.SIGNIFICANT_DIGITS,
             'commonCurrencies': {
@@ -548,24 +554,24 @@ class bitvavo extends bitvavo$1 {
         //         },
         //     ]
         //
+        const fiatCurrencies = this.safeList(this.options, 'fiatCurrencies', []);
         const result = {};
         for (let i = 0; i < currencies.length; i++) {
             const currency = currencies[i];
             const id = this.safeString(currency, 'symbol');
             const code = this.safeCurrencyCode(id);
+            const isFiat = this.inArray(code, fiatCurrencies);
             const networks = {};
-            const networksArray = this.safeValue(currency, 'networks', []);
-            const networksLength = networksArray.length;
-            const isOneNetwork = (networksLength === 1);
-            const deposit = (this.safeValue(currency, 'depositStatus') === 'OK');
-            const withdrawal = (this.safeValue(currency, 'withdrawalStatus') === 'OK');
+            const networksArray = this.safeList(currency, 'networks', []);
+            const deposit = this.safeString(currency, 'depositStatus') === 'OK';
+            const withdrawal = this.safeString(currency, 'withdrawalStatus') === 'OK';
             const active = deposit && withdrawal;
             const withdrawFee = this.safeNumber(currency, 'withdrawalFee');
             const precision = this.safeInteger(currency, 'decimals', 8);
             const minWithdraw = this.safeNumber(currency, 'withdrawalMinAmount');
-            // absolutely all of them have 1 network atm - ETH. So, we can reliably assign that inside networks
-            if (isOneNetwork) {
-                const networkId = networksArray[0];
+            // btw, absolutely all of them have 1 network atm
+            for (let j = 0; j < networksArray.length; j++) {
+                const networkId = networksArray[j];
                 const networkCode = this.networkIdToCode(networkId);
                 networks[networkCode] = {
                     'info': currency,
@@ -584,7 +590,7 @@ class bitvavo extends bitvavo$1 {
                     },
                 };
             }
-            result[code] = {
+            result[code] = this.safeCurrencyStructure({
                 'info': currency,
                 'id': id,
                 'code': code,
@@ -595,6 +601,7 @@ class bitvavo extends bitvavo$1 {
                 'networks': networks,
                 'fee': withdrawFee,
                 'precision': precision,
+                'type': isFiat ? 'fiat' : 'crypto',
                 'limits': {
                     'amount': {
                         'min': undefined,
@@ -609,7 +616,7 @@ class bitvavo extends bitvavo$1 {
                         'max': undefined,
                     },
                 },
-            };
+            });
         }
         // set currencies here to avoid calling publicGetAssets twice
         this.currencies = this.deepExtend(this.currencies, result);
@@ -1179,6 +1186,11 @@ class bitvavo extends bitvavo$1 {
         if (postOnly) {
             request['postOnly'] = true;
         }
+        let operatorId = undefined;
+        [operatorId, params] = this.handleOptionAndParams(params, 'createOrder', 'operatorId');
+        if (operatorId !== undefined) {
+            request['operatorId'] = this.parseToInt(operatorId);
+        }
         return this.extend(request, params);
     }
     /**
@@ -1278,6 +1290,11 @@ class bitvavo extends bitvavo$1 {
         if (clientOrderId === undefined) {
             request['orderId'] = id;
         }
+        let operatorId = undefined;
+        [operatorId, params] = this.handleOptionAndParams(params, 'editOrder', 'operatorId');
+        if (operatorId !== undefined) {
+            request['operatorId'] = this.parseToInt(operatorId);
+        }
         request['market'] = market['id'];
         return request;
     }
@@ -1313,6 +1330,11 @@ class bitvavo extends bitvavo$1 {
         const clientOrderId = this.safeString(params, 'clientOrderId');
         if (clientOrderId === undefined) {
             request['orderId'] = id;
+        }
+        let operatorId = undefined;
+        [operatorId, params] = this.handleOptionAndParams(params, 'cancelOrder', 'operatorId');
+        if (operatorId !== undefined) {
+            request['operatorId'] = this.parseToInt(operatorId);
         }
         return this.extend(request, params);
     }

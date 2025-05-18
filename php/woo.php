@@ -10,7 +10,7 @@ use ccxt\abstract\woo as Exchange;
 
 class woo extends Exchange {
 
-    public function describe() {
+    public function describe(): mixed {
         return $this->deep_extend(parent::describe(), array(
             'id' => 'woo',
             'name' => 'WOO X',
@@ -344,17 +344,20 @@ class woo extends Exchange {
                         'limit' => 500,
                         'daysBack' => 90,
                         'untilDays' => 10000,
+                        'symbolRequired' => false,
                     ),
                     'fetchOrder' => array(
                         'marginMode' => false,
                         'trigger' => true,
                         'trailing' => false,
+                        'symbolRequired' => false,
                     ),
                     'fetchOpenOrders' => array(
                         'marginMode' => false,
                         'limit' => 500,
                         'trigger' => true,
                         'trailing' => true,
+                        'symbolRequired' => false,
                     ),
                     'fetchOrders' => array(
                         'marginMode' => false,
@@ -363,6 +366,7 @@ class woo extends Exchange {
                         'untilDays' => 100000,
                         'trigger' => true,
                         'trailing' => true,
+                        'symbolRequired' => false,
                     ),
                     'fetchClosedOrders' => array(
                         'marginMode' => false,
@@ -372,6 +376,7 @@ class woo extends Exchange {
                         'untilDays' => 100000,
                         'trigger' => true,
                         'trailing' => true,
+                        'symbolRequired' => false,
                     ),
                     'fetchOHLCV' => array(
                         'limit' => 1000,
@@ -468,7 +473,7 @@ class woo extends Exchange {
         );
     }
 
-    public function fetch_time($params = array ()) {
+    public function fetch_time($params = array ()): ?int {
         /**
          * fetches the current integer timestamp in milliseconds from the exchange server
          *
@@ -551,6 +556,7 @@ class woo extends Exchange {
         $symbol = $base . '/' . $quote;
         $contractSize = null;
         $linear = null;
+        $inverse = null;
         $margin = true;
         $contract = $swap;
         if ($contract) {
@@ -560,7 +566,9 @@ class woo extends Exchange {
             $symbol = $base . '/' . $quote . ':' . $settle;
             $contractSize = $this->parse_number('1');
             $linear = true;
+            $inverse = false;
         }
+        $active = $this->safe_string($market, 'is_trading') === '1';
         return array(
             'id' => $marketId,
             'symbol' => $symbol,
@@ -576,10 +584,10 @@ class woo extends Exchange {
             'swap' => $swap,
             'future' => false,
             'option' => false,
-            'active' => $this->safe_string($market, 'is_trading') === '1',
+            'active' => $active,
             'contract' => $contract,
             'linear' => $linear,
-            'inverse' => null,
+            'inverse' => $inverse,
             'contractSize' => $contractSize,
             'expiry' => null,
             'expiryDatetime' => null,
@@ -925,6 +933,7 @@ class woo extends Exchange {
                 'networks' => $resultingNetworks,
                 'deposit' => null,
                 'withdraw' => null,
+                'type' => 'crypto',
                 'limits' => array(
                     'deposit' => array(
                         'min' => null,
@@ -1161,6 +1170,7 @@ class woo extends Exchange {
                 'algoType' => 'POSITIONAL_TP_SL',
                 'childOrders' => array(),
             );
+            $childOrders = $outterOrder['childOrders'];
             $closeSide = ($orderSide === 'BUY') ? 'SELL' : 'BUY';
             if ($stopLoss !== null) {
                 $stopLossPrice = $this->safe_string($stopLoss, 'triggerPrice', $stopLoss);
@@ -1171,7 +1181,7 @@ class woo extends Exchange {
                     'type' => 'CLOSE_POSITION',
                     'reduceOnly' => true,
                 );
-                $outterOrder['childOrders'][] = $stopLossOrder;
+                $childOrders[] = $stopLossOrder;
             }
             if ($takeProfit !== null) {
                 $takeProfitPrice = $this->safe_string($takeProfit, 'triggerPrice', $takeProfit);
@@ -1182,7 +1192,7 @@ class woo extends Exchange {
                     'type' => 'CLOSE_POSITION',
                     'reduceOnly' => true,
                 );
-                $outterOrder['childOrders'][] = $takeProfitOrder;
+                $childOrders[] = $takeProfitOrder;
             }
             $request['childOrders'] = array( $outterOrder );
         }
@@ -2249,7 +2259,9 @@ class woo extends Exchange {
          * @param {array} [$params] extra parameters specific to the exchange API endpoint
          * @return {array} a ~@link https://docs.ccxt.com/#/?id=ledger ledger structure~
          */
-        list($currency, $rows) = $this->get_asset_history_rows($code, $since, $limit, $params);
+        $currencyRows = $this->get_asset_history_rows($code, $since, $limit, $params);
+        $currency = $this->safe_value($currencyRows, 0);
+        $rows = $this->safe_list($currencyRows, 1);
         return $this->parse_ledger($rows, $currency, $since, $limit, $params);
     }
 
@@ -2357,7 +2369,9 @@ class woo extends Exchange {
         $request = array(
             'type' => 'BALANCE',
         );
-        list($currency, $rows) = $this->get_asset_history_rows($code, $since, $limit, $this->extend($request, $params));
+        $currencyRows = $this->get_asset_history_rows($code, $since, $limit, $this->extend($request, $params));
+        $currency = $this->safe_value($currencyRows, 0);
+        $rows = $this->safe_list($currencyRows, 1);
         //
         //     {
         //         "rows":array(),
@@ -3290,7 +3304,7 @@ class woo extends Exchange {
         return $this->v1PrivatePostClientIsolatedMargin ($this->extend($request, $params));
     }
 
-    public function fetch_position(?string $symbol = null, $params = array ()) {
+    public function fetch_position(?string $symbol, $params = array ()) {
         $this->load_markets();
         $market = $this->market($symbol);
         $request = array(
@@ -3324,7 +3338,7 @@ class woo extends Exchange {
         return $this->parse_position($response, $market);
     }
 
-    public function fetch_positions(?array $symbols = null, $params = array ()) {
+    public function fetch_positions(?array $symbols = null, $params = array ()): array {
         $this->load_markets();
         $response = $this->v3PrivateGetPositions ($params);
         //

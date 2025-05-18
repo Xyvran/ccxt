@@ -240,17 +240,20 @@ public partial class bitteam : Exchange
                         { "limit", 100 },
                         { "daysBack", 100000 },
                         { "untilDays", 100000 },
+                        { "symbolRequired", false },
                     } },
                     { "fetchOrder", new Dictionary<string, object>() {
                         { "marginMode", false },
                         { "trigger", false },
                         { "trailing", false },
+                        { "symbolRequired", false },
                     } },
                     { "fetchOpenOrders", new Dictionary<string, object>() {
                         { "marginMode", false },
                         { "limit", 100 },
                         { "trigger", false },
                         { "trailing", false },
+                        { "symbolRequired", false },
                     } },
                     { "fetchOrders", new Dictionary<string, object>() {
                         { "marginMode", true },
@@ -259,6 +262,7 @@ public partial class bitteam : Exchange
                         { "untilDays", null },
                         { "trigger", false },
                         { "trailing", false },
+                        { "symbolRequired", false },
                     } },
                     { "fetchClosedOrders", new Dictionary<string, object>() {
                         { "marginMode", false },
@@ -268,6 +272,7 @@ public partial class bitteam : Exchange
                         { "untilDays", null },
                         { "trigger", false },
                         { "trailing", false },
+                        { "symbolRequired", false },
                     } },
                     { "fetchOHLCV", new Dictionary<string, object>() {
                         { "limit", 1000 },
@@ -641,6 +646,7 @@ public partial class bitteam : Exchange
             object networkIds = new List<object>(((IDictionary<string,object>)feesByNetworkId).Keys);
             object networks = new Dictionary<string, object>() {};
             object networkPrecision = this.parseNumber(this.parsePrecision(this.safeString(currency, "decimals")));
+            object typeRaw = this.safeString(currency, "type");
             for (object j = 0; isLessThan(j, getArrayLength(networkIds)); postFixIncrement(ref j))
             {
                 object networkId = getValue(networkIds, j);
@@ -696,6 +702,7 @@ public partial class bitteam : Exchange
                         { "max", null },
                     } },
                 } },
+                { "type", typeRaw },
                 { "networks", networks },
             };
         }

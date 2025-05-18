@@ -6,7 +6,7 @@ var number = require('./base/functions/number.js');
 var sha512 = require('./static_dependencies/noble-hashes/sha512.js');
 var Precise = require('./base/Precise.js');
 
-// ----------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
 //  ---------------------------------------------------------------------------
 /**
  * @class coinspot
@@ -171,7 +171,8 @@ class coinspot extends coinspot$1 {
                         'marginMode': false,
                         'limit': undefined,
                         'daysBack': 100000,
-                        'untilDays': 100000, // todo implement
+                        'untilDays': 100000,
+                        'symbolRequired': false,
                     },
                     'fetchOrder': undefined,
                     'fetchOpenOrders': undefined,

@@ -5,7 +5,7 @@ var errors = require('./base/errors.js');
 var number = require('./base/functions/number.js');
 var sha512 = require('./static_dependencies/noble-hashes/sha512.js');
 
-// ----------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
 /**
  * @class p2b
@@ -213,6 +213,7 @@ class p2b extends p2b$1 {
                         'limit': 100,
                         'daysBack': 100000,
                         'untilDays': 1,
+                        'symbolRequired': true,
                     },
                     'fetchOrder': undefined,
                     'fetchOpenOrders': {
@@ -220,6 +221,7 @@ class p2b extends p2b$1 {
                         'limit': 100,
                         'trigger': false,
                         'trailing': false,
+                        'symbolRequired': true,
                     },
                     'fetchOrders': undefined,
                     'fetchClosedOrders': {
@@ -230,6 +232,7 @@ class p2b extends p2b$1 {
                         'untilDays': 1,
                         'trigger': false,
                         'trailing': false,
+                        'symbolRequired': false,
                     },
                     'fetchOHLCV': {
                         'limit': 500,

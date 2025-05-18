@@ -6,7 +6,7 @@ var Precise = require('./base/Precise.js');
 var number = require('./base/functions/number.js');
 var sha256 = require('./static_dependencies/noble-hashes/sha256.js');
 
-// ----------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
 //  ---------------------------------------------------------------------------
 /**
  * @class hollaex
@@ -196,18 +196,21 @@ class hollaex extends hollaex$1 {
                         'marginMode': false,
                         'limit': 100,
                         'daysBack': 100000,
-                        'untilDays': 100000, // todo implement
+                        'untilDays': 100000,
+                        'symbolRequired': false,
                     },
                     'fetchOrder': {
                         'marginMode': false,
                         'trigger': false,
                         'trailing': false,
+                        'symbolRequired': false,
                     },
                     'fetchOpenOrders': {
                         'marginMode': false,
                         'limit': 100,
                         'trigger': false,
                         'trailing': false,
+                        'symbolRequired': false,
                     },
                     'fetchOrders': {
                         'marginMode': false,
@@ -216,6 +219,7 @@ class hollaex extends hollaex$1 {
                         'untilDays': 100000,
                         'trigger': false,
                         'trailing': false,
+                        'symbolRequired': false,
                     },
                     'fetchClosedOrders': {
                         'marginMode': false,
@@ -225,6 +229,7 @@ class hollaex extends hollaex$1 {
                         'untilDays': 100000,
                         'trigger': false,
                         'trailing': false,
+                        'symbolRequired': false,
                     },
                     'fetchOHLCV': {
                         'limit': 1000, // todo: no limit in request
@@ -481,6 +486,7 @@ class hollaex extends hollaex$1 {
                     },
                 },
                 'networks': {},
+                'type': 'crypto',
             };
         }
         return result;
@@ -1909,7 +1915,7 @@ class hollaex extends hollaex$1 {
         //         "network":"https://api.hollaex.network"
         //     }
         //
-        const coins = this.safeList(response, 'coins');
+        const coins = this.safeDict(response, 'coins', {});
         return this.parseDepositWithdrawFees(coins, codes, 'symbol');
     }
     normalizeNumberIfNeeded(number) {

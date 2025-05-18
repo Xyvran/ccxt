@@ -8,7 +8,7 @@ var sha3 = require('./static_dependencies/noble-hashes/sha3.js');
 var secp256k1 = require('./static_dependencies/noble-curves/secp256k1.js');
 var crypto = require('./base/functions/crypto.js');
 
-// ----------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
 //  ---------------------------------------------------------------------------
 /**
  * @class vertex
@@ -352,17 +352,20 @@ class vertex extends vertex$1 {
                         'limit': 500,
                         'daysBack': 100000,
                         'untilDays': undefined,
+                        'symbolRequired': false,
                     },
                     'fetchOrder': {
                         'marginMode': false,
                         'trigger': false,
                         'trailing': false,
+                        'symbolRequired': true,
                     },
                     'fetchOpenOrders': {
                         'marginMode': false,
                         'limit': 500,
                         'trigger': true,
                         'trailing': false,
+                        'symbolRequired': false,
                     },
                     'fetchOrders': undefined,
                     'fetchClosedOrders': undefined,
@@ -626,7 +629,7 @@ class vertex extends vertex$1 {
     async fetchTime(params = {}) {
         const response = await this.v1GatewayGetTime(params);
         // 1717481623452
-        return this.parseNumber(response);
+        return this.parseToInt(response);
     }
     /**
      * @method
@@ -1548,7 +1551,7 @@ class vertex extends vertex$1 {
         if (base.indexOf('PERP') > 0) {
             marketId = marketId.replace('-PERP', '') + ':USDC';
         }
-        market = this.market(marketId);
+        market = this.safeMarket(marketId, market);
         const last = this.safeString(ticker, 'last_price');
         return this.safeTicker({
             'symbol': market['symbol'],
@@ -2465,15 +2468,16 @@ class vertex extends vertex$1 {
             'digests': ids,
             'nonce': nonce,
         };
+        const productIds = cancels['productIds'];
         const marketIdNum = this.parseToNumeric(marketId);
         for (let i = 0; i < ids.length; i++) {
-            cancels['productIds'].push(marketIdNum);
+            productIds.push(marketIdNum);
         }
         const request = {
             'cancel_orders': {
                 'tx': {
                     'sender': cancels['sender'],
-                    'productIds': cancels['productIds'],
+                    'productIds': productIds,
                     'digests': cancels['digests'],
                     'nonce': this.numberToString(cancels['nonce']),
                 },

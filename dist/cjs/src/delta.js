@@ -6,7 +6,7 @@ var number = require('./base/functions/number.js');
 var Precise = require('./base/Precise.js');
 var sha256 = require('./static_dependencies/noble-hashes/sha256.js');
 
-// ----------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
 //  ---------------------------------------------------------------------------
 /**
  * @class delta
@@ -259,6 +259,7 @@ class delta extends delta$1 {
                         'limit': 100,
                         'daysBack': 100000,
                         'untilDays': 100000,
+                        'symbolRequired': false,
                     },
                     'fetchOrder': undefined,
                     'fetchOpenOrders': {
@@ -266,6 +267,7 @@ class delta extends delta$1 {
                         'limit': 100,
                         'trigger': false,
                         'trailing': false,
+                        'symbolRequired': false,
                     },
                     'fetchOrders': undefined,
                     'fetchClosedOrders': {
@@ -276,6 +278,7 @@ class delta extends delta$1 {
                         'untilDays': 100000,
                         'trigger': false,
                         'trailing': false,
+                        'symbolRequired': false,
                     },
                     'fetchOHLCV': {
                         'limit': 2000, // todo: recheck
@@ -344,6 +347,9 @@ class delta extends delta$1 {
             base = this.safeString(optionParts, 1);
             expiry = this.safeString(optionParts, 3);
             optionType = this.safeString(optionParts, 0);
+        }
+        if (expiry !== undefined) {
+            expiry = expiry.slice(4) + expiry.slice(2, 4) + expiry.slice(0, 2);
         }
         const settle = quote;
         const strike = this.safeString(optionParts, 2);
@@ -560,6 +566,7 @@ class delta extends delta$1 {
                     },
                 },
                 'networks': {},
+                'type': 'crypto',
             };
         }
         return result;

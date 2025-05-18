@@ -5,7 +5,7 @@ var errors = require('./base/errors.js');
 var Precise = require('./base/Precise.js');
 var number = require('./base/functions/number.js');
 
-// ----------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
 //  ---------------------------------------------------------------------------
 /**
  * @class probit
@@ -200,18 +200,21 @@ class probit extends probit$1 {
                         'marginMode': false,
                         'limit': 1000,
                         'daysBack': 100000,
-                        'untilDays': 100000, // todo
+                        'untilDays': 100000,
+                        'symbolRequired': false,
                     },
                     'fetchOrder': {
                         'marginMode': false,
                         'trigger': false,
                         'trailing': false,
+                        'symbolRequired': true,
                     },
                     'fetchOpenOrders': {
                         'marginMode': false,
                         'limit': undefined,
                         'trigger': false,
                         'trailing': false,
+                        'symbolRequired': false,
                     },
                     'fetchOrders': undefined,
                     'fetchClosedOrders': {
@@ -222,6 +225,7 @@ class probit extends probit$1 {
                         'untilDays': 90,
                         'trigger': false,
                         'trailing': false,
+                        'symbolRequired': false,
                     },
                     'fetchOHLCV': {
                         'limit': 4000,
@@ -550,6 +554,7 @@ class probit extends probit$1 {
                 'active': active,
                 'deposit': deposit,
                 'withdraw': withdraw,
+                'type': 'crypto',
                 'fee': fee,
                 'precision': this.parseNumber(this.parsePrecision(this.safeString(platform, 'precision'))),
                 'limits': {

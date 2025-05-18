@@ -10,7 +10,7 @@ use ccxt\abstract\hitbtc as Exchange;
 
 class hitbtc extends Exchange {
 
-    public function describe() {
+    public function describe(): mixed {
         return $this->deep_extend(parent::describe(), array(
             'id' => 'hitbtc',
             'name' => 'HitBTC',
@@ -26,7 +26,7 @@ class hitbtc extends Exchange {
                 'margin' => true,
                 'swap' => true,
                 'future' => false,
-                'option' => null,
+                'option' => false,
                 'addMargin' => true,
                 'cancelAllOrders' => true,
                 'cancelOrder' => true,
@@ -58,6 +58,7 @@ class hitbtc extends Exchange {
                 'fetchFundingRate' => true,
                 'fetchFundingRateHistory' => true,
                 'fetchFundingRates' => true,
+                'fetchGreeks' => false,
                 'fetchIndexOHLCV' => true,
                 'fetchIsolatedBorrowRate' => false,
                 'fetchIsolatedBorrowRates' => false,
@@ -70,6 +71,7 @@ class hitbtc extends Exchange {
                 'fetchMarkets' => true,
                 'fetchMarkOHLCV' => true,
                 'fetchMyLiquidations' => false,
+                'fetchMySettlementHistory' => false,
                 'fetchMyTrades' => true,
                 'fetchOHLCV' => true,
                 'fetchOpenInterest' => true,
@@ -77,6 +79,8 @@ class hitbtc extends Exchange {
                 'fetchOpenInterests' => true,
                 'fetchOpenOrder' => true,
                 'fetchOpenOrders' => true,
+                'fetchOption' => false,
+                'fetchOptionChain' => false,
                 'fetchOrder' => true,
                 'fetchOrderBook' => true,
                 'fetchOrderBooks' => true,
@@ -85,12 +89,14 @@ class hitbtc extends Exchange {
                 'fetchPosition' => true,
                 'fetchPositions' => true,
                 'fetchPremiumIndexOHLCV' => true,
+                'fetchSettlementHistory' => false,
                 'fetchTicker' => true,
                 'fetchTickers' => true,
                 'fetchTrades' => true,
                 'fetchTradingFee' => true,
                 'fetchTradingFees' => true,
                 'fetchTransactions' => 'emulated',
+                'fetchVolatilityHistory' => false,
                 'fetchWithdrawals' => true,
                 'reduceMargin' => true,
                 'sandbox' => true,
@@ -317,12 +323,14 @@ class hitbtc extends Exchange {
                         'limit' => 1000,
                         'daysBack' => 100000,
                         'untilDays' => 100000,
+                        'symbolRequired' => false,
                         'marketType' => true,
                     ),
                     'fetchOrder' => array(
                         'marginMode' => true,
                         'trigger' => false,
                         'trailing' => false,
+                        'symbolRequired' => false,
                         'marketType' => true,
                     ),
                     'fetchOpenOrders' => array(
@@ -330,6 +338,7 @@ class hitbtc extends Exchange {
                         'limit' => 1000,
                         'trigger' => false,
                         'trailing' => false,
+                        'symbolRequired' => false,
                         'marketType' => true,
                     ),
                     'fetchOrders' => null,
@@ -341,6 +350,7 @@ class hitbtc extends Exchange {
                         'untilDays' => 100000, // todo
                         'trigger' => false,
                         'trailing' => false,
+                        'symbolRequired' => false,
                         'marketType' => true,
                     ),
                     'fetchOHLCV' => array(
@@ -945,6 +955,8 @@ class hitbtc extends Exchange {
             $transferEnabled = $this->safe_bool($entry, 'transfer_enabled', false);
             $active = $payinEnabled && $payoutEnabled && $transferEnabled;
             $rawNetworks = $this->safe_value($entry, 'networks', array());
+            $isCrypto = $this->safe_bool($entry, 'crypto');
+            $type = $isCrypto ? 'crypto' : 'fiat';
             $networks = array();
             $fee = null;
             $depositEnabled = null;
@@ -1005,12 +1017,13 @@ class hitbtc extends Exchange {
                         'max' => null,
                     ),
                 ),
+                'type' => $type,
             );
         }
         return $result;
     }
 
-    public function create_deposit_address(string $code, $params = array ()) {
+    public function create_deposit_address(string $code, $params = array ()): array {
         /**
          * create a $currency deposit address
          *
@@ -1425,7 +1438,6 @@ class hitbtc extends Exchange {
         $fee = null;
         $feeCostString = $this->safe_string($trade, 'fee');
         $taker = $this->safe_value($trade, 'taker');
-        $takerOrMaker = null;
         if ($taker !== null) {
             $takerOrMaker = $taker ? 'taker' : 'maker';
         } else {
@@ -1659,7 +1671,7 @@ class hitbtc extends Exchange {
         return $this->fetch_transactions_helper('WITHDRAW', $code, $since, $limit, $params);
     }
 
-    public function fetch_order_books(?array $symbols = null, ?int $limit = null, $params = array ()) {
+    public function fetch_order_books(?array $symbols = null, ?int $limit = null, $params = array ()): OrderBooks {
         /**
          * fetches information on open orders with bid (buy) and ask (sell) prices, volumes and other data for multiple markets
          *
@@ -2948,7 +2960,7 @@ class hitbtc extends Exchange {
         return $this->filter_by_symbol_since_limit($sorted, $symbol, $since, $limit);
     }
 
-    public function fetch_positions(?array $symbols = null, $params = array ()) {
+    public function fetch_positions(?array $symbols = null, $params = array ()): array {
         /**
          * fetch all open positions
          *

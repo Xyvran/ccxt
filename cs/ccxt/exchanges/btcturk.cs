@@ -154,6 +154,7 @@ public partial class btcturk : Exchange
                         { "limit", 100 },
                         { "daysBack", 100000 },
                         { "untilDays", 30 },
+                        { "symbolRequired", true },
                     } },
                     { "fetchOrder", null },
                     { "fetchOpenOrders", new Dictionary<string, object>() {
@@ -161,6 +162,7 @@ public partial class btcturk : Exchange
                         { "limit", null },
                         { "trigger", false },
                         { "trailing", false },
+                        { "symbolRequired", true },
                     } },
                     { "fetchOrders", new Dictionary<string, object>() {
                         { "marginMode", false },
@@ -169,6 +171,7 @@ public partial class btcturk : Exchange
                         { "untilDays", 30 },
                         { "trigger", false },
                         { "trailing", false },
+                        { "symbolRequired", true },
                     } },
                     { "fetchClosedOrders", null },
                     { "fetchOHLCV", new Dictionary<string, object>() {
@@ -235,7 +238,7 @@ public partial class btcturk : Exchange
         //                            "minPrice": "0.0000000000001",
         //                            "maxPrice": "10000000",
         //                            "tickSize": "10",
-        //                            "minExchangeValue": "99.91",
+        //                            "minExchangeValue": "99.92",
         //                            "minAmount": null,
         //                            "maxAmount": null
         //                        }

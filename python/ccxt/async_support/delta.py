@@ -6,7 +6,7 @@
 from ccxt.async_support.base.exchange import Exchange
 from ccxt.abstract.delta import ImplicitAPI
 import hashlib
-from ccxt.base.types import Balances, Currencies, Currency, DepositAddress, Greeks, Int, LedgerEntry, Leverage, MarginMode, MarginModification, Market, MarketInterface, Num, Option, Order, OrderBook, OrderSide, OrderType, Position, Str, Strings, Ticker, Tickers, FundingRate, FundingRates, Trade
+from ccxt.base.types import Any, Balances, Currencies, Currency, DepositAddress, Greeks, Int, LedgerEntry, Leverage, MarginMode, MarginModification, Market, Num, Option, Order, OrderBook, OrderSide, OrderType, Position, Str, Strings, Ticker, Tickers, FundingRate, FundingRates, Trade, MarketInterface
 from typing import List
 from ccxt.base.errors import ExchangeError
 from ccxt.base.errors import AuthenticationError
@@ -23,7 +23,7 @@ from ccxt.base.precise import Precise
 
 class delta(Exchange, ImplicitAPI):
 
-    def describe(self):
+    def describe(self) -> Any:
         return self.deep_extend(super(delta, self).describe(), {
             'id': 'delta',
             'name': 'Delta Exchange',
@@ -269,6 +269,7 @@ class delta(Exchange, ImplicitAPI):
                         'limit': 100,  # todo: revise
                         'daysBack': 100000,
                         'untilDays': 100000,
+                        'symbolRequired': False,
                     },
                     'fetchOrder': None,
                     'fetchOpenOrders': {
@@ -276,6 +277,7 @@ class delta(Exchange, ImplicitAPI):
                         'limit': 100,  # todo: revise
                         'trigger': False,
                         'trailing': False,
+                        'symbolRequired': False,
                     },
                     'fetchOrders': None,
                     'fetchClosedOrders': {
@@ -286,6 +288,7 @@ class delta(Exchange, ImplicitAPI):
                         'untilDays': 100000,
                         'trigger': False,
                         'trailing': False,
+                        'symbolRequired': False,
                     },
                     'fetchOHLCV': {
                         'limit': 2000,  # todo: recheck
@@ -354,6 +357,8 @@ class delta(Exchange, ImplicitAPI):
             base = self.safe_string(optionParts, 1)
             expiry = self.safe_string(optionParts, 3)
             optionType = self.safe_string(optionParts, 0)
+        if expiry is not None:
+            expiry = expiry[4:] + expiry[2:4] + expiry[0:2]
         settle = quote
         strike = self.safe_string(optionParts, 2)
         datetime = self.convert_expire_date(expiry)
@@ -410,7 +415,7 @@ class delta(Exchange, ImplicitAPI):
             return self.create_expired_option_market(marketId)
         return super(delta, self).safe_market(marketId, market, delimiter, marketType)
 
-    async def fetch_time(self, params={}):
+    async def fetch_time(self, params={}) -> Int:
         """
         fetches the current integer timestamp in milliseconds from the exchange server
         :param dict [params]: extra parameters specific to the exchange API endpoint
@@ -564,6 +569,7 @@ class delta(Exchange, ImplicitAPI):
                     },
                 },
                 'networks': {},
+                'type': 'crypto',
             }
         return result
 
@@ -1657,7 +1663,7 @@ class delta(Exchange, ImplicitAPI):
         result = self.safe_dict(response, 'result', {})
         return self.parse_position(result, market)
 
-    async def fetch_positions(self, symbols: Strings = None, params={}):
+    async def fetch_positions(self, symbols: Strings = None, params={}) -> List[Position]:
         """
         fetch all open positions
 

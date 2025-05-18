@@ -6,7 +6,7 @@ import { AuthenticationError, RateLimitExceeded, BadRequest, OperationFailed, Ex
 import { Precise } from './base/Precise.js';
 import { TICK_SIZE } from './base/functions/number.js';
 import { sha256 } from './static_dependencies/noble-hashes/sha256.js';
-import type { TransferEntry, Balances, Conversion, Currency, FundingRateHistory, Int, Market, MarginModification, MarketType, Num, OHLCV, Order, OrderBook, OrderSide, OrderType, Str, Dict, Bool, Strings, Trade, Transaction, Leverage, Account, Currencies, TradingFees, int, FundingHistory, LedgerEntry, FundingRate, FundingRates, DepositAddress } from './base/types.js';
+import type { TransferEntry, Balances, Conversion, Currency, FundingRateHistory, Int, Market, MarginModification, MarketType, Num, OHLCV, Order, OrderBook, OrderSide, OrderType, Str, Dict, Bool, Strings, Trade, Transaction, Leverage, Account, Currencies, TradingFees, int, FundingHistory, LedgerEntry, FundingRate, FundingRates, DepositAddress, Position } from './base/types.js';
 
 // ---------------------------------------------------------------------------
 
@@ -15,7 +15,7 @@ import type { TransferEntry, Balances, Conversion, Currency, FundingRateHistory,
  * @augments Exchange
  */
 export default class woo extends Exchange {
-    describe () {
+    describe (): any {
         return this.deepExtend (super.describe (), {
             'id': 'woo',
             'name': 'WOO X',
@@ -349,17 +349,20 @@ export default class woo extends Exchange {
                         'limit': 500,
                         'daysBack': 90,
                         'untilDays': 10000,
+                        'symbolRequired': false,
                     },
                     'fetchOrder': {
                         'marginMode': false,
                         'trigger': true,
                         'trailing': false,
+                        'symbolRequired': false,
                     },
                     'fetchOpenOrders': {
                         'marginMode': false,
                         'limit': 500,
                         'trigger': true,
                         'trailing': true,
+                        'symbolRequired': false,
                     },
                     'fetchOrders': {
                         'marginMode': false,
@@ -368,6 +371,7 @@ export default class woo extends Exchange {
                         'untilDays': 100000,
                         'trigger': true,
                         'trailing': true,
+                        'symbolRequired': false,
                     },
                     'fetchClosedOrders': {
                         'marginMode': false,
@@ -377,6 +381,7 @@ export default class woo extends Exchange {
                         'untilDays': 100000,
                         'trigger': true,
                         'trailing': true,
+                        'symbolRequired': false,
                     },
                     'fetchOHLCV': {
                         'limit': 1000,
@@ -481,7 +486,7 @@ export default class woo extends Exchange {
      * @param {object} [params] extra parameters specific to the exchange API endpoint
      * @returns {int} the current integer timestamp in milliseconds from the exchange server
      */
-    async fetchTime (params = {}) {
+    async fetchTime (params = {}): Promise<Int> {
         const response = await this.v1PublicGetSystemInfo (params);
         //
         //     {
@@ -557,6 +562,7 @@ export default class woo extends Exchange {
         let symbol = base + '/' + quote;
         let contractSize: Num = undefined;
         let linear: Bool = undefined;
+        let inverse: Bool = undefined;
         let margin = true;
         const contract = swap;
         if (contract) {
@@ -566,7 +572,9 @@ export default class woo extends Exchange {
             symbol = base + '/' + quote + ':' + settle;
             contractSize = this.parseNumber ('1');
             linear = true;
+            inverse = false;
         }
+        const active = this.safeString (market, 'is_trading') === '1';
         return {
             'id': marketId,
             'symbol': symbol,
@@ -582,10 +590,10 @@ export default class woo extends Exchange {
             'swap': swap,
             'future': false,
             'option': false,
-            'active': this.safeString (market, 'is_trading') === '1',
+            'active': active,
             'contract': contract,
             'linear': linear,
-            'inverse': undefined,
+            'inverse': inverse,
             'contractSize': contractSize,
             'expiry': undefined,
             'expiryDatetime': undefined,
@@ -931,6 +939,7 @@ export default class woo extends Exchange {
                 'networks': resultingNetworks,
                 'deposit': undefined,
                 'withdraw': undefined,
+                'type': 'crypto',
                 'limits': {
                     'deposit': {
                         'min': undefined,
@@ -1167,6 +1176,7 @@ export default class woo extends Exchange {
                 'algoType': 'POSITIONAL_TP_SL',
                 'childOrders': [],
             };
+            const childOrders = outterOrder['childOrders'];
             const closeSide = (orderSide === 'BUY') ? 'SELL' : 'BUY';
             if (stopLoss !== undefined) {
                 const stopLossPrice = this.safeString (stopLoss, 'triggerPrice', stopLoss);
@@ -1177,7 +1187,7 @@ export default class woo extends Exchange {
                     'type': 'CLOSE_POSITION',
                     'reduceOnly': true,
                 };
-                outterOrder['childOrders'].push (stopLossOrder);
+                childOrders.push (stopLossOrder);
             }
             if (takeProfit !== undefined) {
                 const takeProfitPrice = this.safeString (takeProfit, 'triggerPrice', takeProfit);
@@ -1188,7 +1198,7 @@ export default class woo extends Exchange {
                     'type': 'CLOSE_POSITION',
                     'reduceOnly': true,
                 };
-                outterOrder['childOrders'].push (takeProfitOrder);
+                childOrders.push (takeProfitOrder);
             }
             request['childOrders'] = [ outterOrder ];
         }
@@ -2255,7 +2265,9 @@ export default class woo extends Exchange {
      * @returns {object} a [ledger structure]{@link https://docs.ccxt.com/#/?id=ledger}
      */
     async fetchLedger (code: Str = undefined, since: Int = undefined, limit: Int = undefined, params = {}): Promise<LedgerEntry[]> {
-        const [ currency, rows ] = await this.getAssetHistoryRows (code, since, limit, params);
+        const currencyRows = await this.getAssetHistoryRows (code, since, limit, params);
+        const currency = this.safeValue (currencyRows, 0);
+        const rows = this.safeList (currencyRows, 1);
         return this.parseLedger (rows, currency, since, limit, params);
     }
 
@@ -2363,7 +2375,9 @@ export default class woo extends Exchange {
         const request: Dict = {
             'type': 'BALANCE',
         };
-        const [ currency, rows ] = await this.getAssetHistoryRows (code, since, limit, this.extend (request, params));
+        const currencyRows = await this.getAssetHistoryRows (code, since, limit, this.extend (request, params));
+        const currency = this.safeValue (currencyRows, 0);
+        const rows = this.safeList (currencyRows, 1);
         //
         //     {
         //         "rows":[],
@@ -3296,7 +3310,7 @@ export default class woo extends Exchange {
         return await this.v1PrivatePostClientIsolatedMargin (this.extend (request, params)) as MarginModification;
     }
 
-    async fetchPosition (symbol: Str = undefined, params = {}) {
+    async fetchPosition (symbol: Str, params = {}) {
         await this.loadMarkets ();
         const market = this.market (symbol);
         const request: Dict = {
@@ -3330,7 +3344,7 @@ export default class woo extends Exchange {
         return this.parsePosition (response, market);
     }
 
-    async fetchPositions (symbols: Strings = undefined, params = {}) {
+    async fetchPositions (symbols: Strings = undefined, params = {}): Promise<Position[]> {
         await this.loadMarkets ();
         const response = await this.v3PrivateGetPositions (params);
         //

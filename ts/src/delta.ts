@@ -15,7 +15,7 @@ import type { Balances, Currency, Greeks, Int, Market, MarketInterface, OHLCV, O
  * @augments Exchange
  */
 export default class delta extends Exchange {
-    describe () {
+    describe (): any {
         return this.deepExtend (super.describe (), {
             'id': 'delta',
             'name': 'Delta Exchange',
@@ -261,6 +261,7 @@ export default class delta extends Exchange {
                         'limit': 100, // todo: revise
                         'daysBack': 100000,
                         'untilDays': 100000,
+                        'symbolRequired': false,
                     },
                     'fetchOrder': undefined,
                     'fetchOpenOrders': {
@@ -268,6 +269,7 @@ export default class delta extends Exchange {
                         'limit': 100, // todo: revise
                         'trigger': false,
                         'trailing': false,
+                        'symbolRequired': false,
                     },
                     'fetchOrders': undefined,
                     'fetchClosedOrders': {
@@ -278,6 +280,7 @@ export default class delta extends Exchange {
                         'untilDays': 100000,
                         'trigger': false,
                         'trailing': false,
+                        'symbolRequired': false,
                     },
                     'fetchOHLCV': {
                         'limit': 2000, // todo: recheck
@@ -348,6 +351,9 @@ export default class delta extends Exchange {
             expiry = this.safeString (optionParts, 3);
             optionType = this.safeString (optionParts, 0);
         }
+        if (expiry !== undefined) {
+            expiry = expiry.slice (4) + expiry.slice (2, 4) + expiry.slice (0, 2);
+        }
         const settle = quote;
         const strike = this.safeString (optionParts, 2);
         const datetime = this.convertExpireDate (expiry);
@@ -414,7 +420,7 @@ export default class delta extends Exchange {
      * @param {object} [params] extra parameters specific to the exchange API endpoint
      * @returns {int} the current integer timestamp in milliseconds from the exchange server
      */
-    async fetchTime (params = {}) {
+    async fetchTime (params = {}): Promise<Int> {
         const response = await this.publicGetSettings (params);
         // full response sample under `fetchStatus`
         const result = this.safeDict (response, 'result', {});
@@ -567,6 +573,7 @@ export default class delta extends Exchange {
                     },
                 },
                 'networks': {},
+                'type': 'crypto',
             };
         }
         return result;
@@ -1707,7 +1714,7 @@ export default class delta extends Exchange {
      * @param {object} [params] extra parameters specific to the exchange API endpoint
      * @returns {object[]} a list of [position structure]{@link https://docs.ccxt.com/#/?id=position-structure}
      */
-    async fetchPositions (symbols: Strings = undefined, params = {}) {
+    async fetchPositions (symbols: Strings = undefined, params = {}): Promise<Position[]> {
         await this.loadMarkets ();
         const response = await this.privateGetPositionsMargined (params);
         //

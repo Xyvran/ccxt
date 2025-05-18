@@ -9,7 +9,7 @@ var sha3 = require('./static_dependencies/noble-hashes/sha3.js');
 var secp256k1 = require('./static_dependencies/noble-curves/secp256k1.js');
 var crypto = require('./base/functions/crypto.js');
 
-// ----------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
 /**
  * @class idex
@@ -201,18 +201,21 @@ class idex extends idex$1 {
                         'marginMode': false,
                         'limit': 1000,
                         'daysBack': 100000,
-                        'untilDays': 100000, // todo
+                        'untilDays': 100000,
+                        'symbolRequired': false,
                     },
                     'fetchOrder': {
                         'marginMode': false,
                         'trigger': false,
                         'trailing': false,
+                        'symbolRequired': false,
                     },
                     'fetchOpenOrders': {
                         'marginMode': false,
                         'limit': 1000,
                         'trigger': false,
                         'trailing': false,
+                        'symbolRequired': false,
                     },
                     'fetchOrders': undefined,
                     'fetchClosedOrders': {
@@ -223,6 +226,7 @@ class idex extends idex$1 {
                         'untilDays': 1000000,
                         'trigger': false,
                         'trailing': false,
+                        'symbolRequired': false,
                     },
                     'fetchOHLCV': {
                         'limit': 1000,
@@ -1839,7 +1843,7 @@ class idex extends idex$1 {
      * @param {object} [params] extra parameters specific to the exchange API endpoint
      * @returns {object} an [address structure]{@link https://docs.ccxt.com/#/?id=address-structure}
      */
-    async fetchDepositAddress(code = undefined, params = {}) {
+    async fetchDepositAddress(code, params = {}) {
         const request = {};
         request['nonce'] = this.uuidv1();
         const response = await this.privateGetWallets(this.extend(request, params));
