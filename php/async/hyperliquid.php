@@ -2334,6 +2334,13 @@ class hyperliquid extends Exchange {
             //         "status" => "order"
             //     }
             //
+
+            // Patched by xyvran (20250713):
+            // for missing orders, the response is:
+            if (($response['status'] ?? '') === 'unknownOid') {
+              return [];
+            }
+            // ---
             $data = $this->safe_dict($response, 'order');
             return $this->parse_order($data, $market);
         }) ();
