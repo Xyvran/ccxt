@@ -4949,9 +4949,13 @@ class bybit extends Exchange {
             if ($market['spot']) {
                 throw new NotSupported($this->id . ' fetchOrder() is not supported for spot markets');
             }
-            $request = array(
-                'orderId' => $id,
-            );
+            $request = array();
+            $clientOrderId = $this->safe_string_2($params, 'orderLinkId', 'clientOrderId');
+            if ($clientOrderId !== null) {
+                $request['orderLinkId'] = $clientOrderId;
+            } else {
+                $request['orderId'] = $id;
+            }
             $result = Async\await($this->fetch_orders($symbol, null, null, $this->extend($request, $params)));
             $length = count($result);
             if ($length === 0) {
@@ -5220,9 +5224,13 @@ class bybit extends Exchange {
              * @return {array} an ~@link https://docs.ccxt.com/#/?$id=order-structure order structure~
              */
             Async\await($this->load_markets());
-            $request = array(
-                'orderId' => $id,
-            );
+            $request = array();
+            $clientOrderId = $this->safe_string_2($params, 'orderLinkId', 'clientOrderId');
+            if ($clientOrderId !== null) {
+                $request['orderLinkId'] = $clientOrderId;
+            } else {
+                $request['orderId'] = $id;
+            }
             $result = Async\await($this->fetch_closed_orders($symbol, null, null, $this->extend($request, $params)));
             $length = count($result);
             if ($length === 0) {
@@ -5257,9 +5265,13 @@ class bybit extends Exchange {
              * @return {array} an ~@link https://docs.ccxt.com/#/?$id=order-structure order structure~
              */
             Async\await($this->load_markets());
-            $request = array(
-                'orderId' => $id,
-            );
+            $request = array();
+            $clientOrderId = $this->safe_string_2($params, 'orderLinkId', 'clientOrderId');
+            if ($clientOrderId !== null) {
+                $request['orderLinkId'] = $clientOrderId;
+            } else {
+                $request['orderId'] = $id;
+            }
             $result = Async\await($this->fetch_open_orders($symbol, null, null, $this->extend($request, $params)));
             $length = count($result);
             if ($length === 0) {
