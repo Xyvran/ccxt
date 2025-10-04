@@ -813,9 +813,9 @@ class apex extends Exchange {
             $limit = 200; // default is 200 when requested with `$since`
         }
         $request['limit'] = $limit; // max 200, default 200
-        list($request, $params) = $this->handle_until_option('end', $request, $params);
+        list($request, $params) = $this->handle_until_option('end', $request, $params, 0.001);
         if ($since !== null) {
-            $request['start'] = $since;
+            $request['start'] = (int) floor($since / 1000);
         }
         $response = $this->publicGetV3Klines ($this->extend($request, $params));
         $data = $this->safe_dict($response, 'data', array());
@@ -1541,7 +1541,7 @@ class apex extends Exchange {
         );
     }
 
-    public function cancel_all_orders(?string $symbol = null, $params = array ()) {
+    public function cancel_all_orders(?string $symbol = null, $params = array ()): array {
         /**
          * cancel all open orders in a $market
          *
@@ -1560,7 +1560,7 @@ class apex extends Exchange {
         }
         $response = $this->privatePostV3DeleteOpenOrders ($this->extend($request, $params));
         $data = $this->safe_dict($response, 'data', array());
-        return $data;
+        return array( $this->parse_order($data, $market) );
     }
 
     public function cancel_order(string $id, ?string $symbol = null, $params = array ()) {
@@ -1586,7 +1586,7 @@ class apex extends Exchange {
             $response = $this->privatePostV3DeleteOrder ($this->extend($request, $params));
         }
         $data = $this->safe_dict($response, 'data', array());
-        return $data;
+        return $this->safe_order($data);
     }
 
     public function fetch_order(string $id, ?string $symbol = null, $params = array ()) {
@@ -1816,7 +1816,7 @@ class apex extends Exchange {
         );
     }
 
-    public function set_leverage(?int $leverage, ?string $symbol = null, $params = array ()) {
+    public function set_leverage(int $leverage, ?string $symbol = null, $params = array ()) {
         /**
          * set the level of $leverage for a $market
          *

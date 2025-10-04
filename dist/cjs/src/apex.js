@@ -1,18 +1,20 @@
 'use strict';
 
+Object.defineProperty(exports, '__esModule', { value: true });
+
 var Precise = require('./base/Precise.js');
 var apex$1 = require('./abstract/apex.js');
 var number = require('./base/functions/number.js');
 var sha256 = require('./static_dependencies/noble-hashes/sha256.js');
 var errors = require('./base/errors.js');
 
-//  ---------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
 //  ---------------------------------------------------------------------------
 /**
  * @class apex
  * @augments Exchange
  */
-class apex extends apex$1 {
+class apex extends apex$1["default"] {
     describe() {
         return this.deepExtend(super.describe(), {
             'id': 'apex',
@@ -803,9 +805,9 @@ class apex extends apex$1 {
             limit = 200; // default is 200 when requested with `since`
         }
         request['limit'] = limit; // max 200, default 200
-        [request, params] = this.handleUntilOption('end', request, params);
+        [request, params] = this.handleUntilOption('end', request, params, 0.001);
         if (since !== undefined) {
-            request['start'] = since;
+            request['start'] = Math.floor(since / 1000);
         }
         const response = await this.publicGetV3Klines(this.extend(request, params));
         const data = this.safeDict(response, 'data', {});
@@ -1537,7 +1539,7 @@ class apex extends apex$1 {
         }
         const response = await this.privatePostV3DeleteOpenOrders(this.extend(request, params));
         const data = this.safeDict(response, 'data', {});
-        return data;
+        return [this.parseOrder(data, market)];
     }
     /**
      * @method
@@ -1563,7 +1565,7 @@ class apex extends apex$1 {
             response = await this.privatePostV3DeleteOrder(this.extend(request, params));
         }
         const data = this.safeDict(response, 'data', {});
-        return data;
+        return this.safeOrder(data);
     }
     /**
      * @method
@@ -1937,4 +1939,4 @@ class apex extends apex$1 {
     }
 }
 
-module.exports = apex;
+exports["default"] = apex;

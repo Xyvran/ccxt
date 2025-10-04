@@ -1051,7 +1051,7 @@ public partial class htx : ccxt.htx
         {
             // contract branch
             parsedOrder = this.parseWsOrder(message, market);
-            object rawTrades = this.safeValue(message, "trade", new List<object>() {});
+            object rawTrades = this.safeList(message, "trade", new List<object>() {});
             object tradesLength = getArrayLength(rawTrades);
             if (isTrue(isGreaterThan(tradesLength, 0)))
             {
@@ -2182,7 +2182,7 @@ public partial class htx : ccxt.htx
                 }
             }
         }
-        return message;
+        return true;
     }
 
     public override void handleMessage(WebSocketClient client, object message)

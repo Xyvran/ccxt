@@ -816,9 +816,9 @@ export default class apex extends Exchange {
             limit = 200; // default is 200 when requested with `since`
         }
         request['limit'] = limit; // max 200, default 200
-        [ request, params ] = this.handleUntilOption ('end', request, params);
+        [ request, params ] = this.handleUntilOption ('end', request, params, 0.001);
         if (since !== undefined) {
-            request['start'] = since;
+            request['start'] = Math.floor (since / 1000);
         }
         const response = await this.publicGetV3Klines (this.extend (request, params));
         const data = this.safeDict (response, 'data', {});
@@ -1555,7 +1555,7 @@ export default class apex extends Exchange {
      * @param {object} [params] extra parameters specific to the exchange API endpoint
      * @returns {object[]} a list of [order structures]{@link https://docs.ccxt.com/#/?id=order-structure}
      */
-    async cancelAllOrders (symbol: Str = undefined, params = {}) {
+    async cancelAllOrders (symbol: Str = undefined, params = {}): Promise<Order[]> {
         await this.loadMarkets ();
         let market = undefined;
         const request: Dict = {};
@@ -1565,7 +1565,7 @@ export default class apex extends Exchange {
         }
         const response = await this.privatePostV3DeleteOpenOrders (this.extend (request, params));
         const data = this.safeDict (response, 'data', {});
-        return data;
+        return [ this.parseOrder (data, market) ];
     }
 
     /**
@@ -1591,7 +1591,7 @@ export default class apex extends Exchange {
             response = await this.privatePostV3DeleteOrder (this.extend (request, params));
         }
         const data = this.safeDict (response, 'data', {});
-        return data;
+        return this.safeOrder (data);
     }
 
     /**
@@ -1831,7 +1831,7 @@ export default class apex extends Exchange {
      * @param {object} [params] extra parameters specific to the exchange API endpoint
      * @returns {object} response from the exchange
      */
-    async setLeverage (leverage: Int, symbol: Str = undefined, params = {}) {
+    async setLeverage (leverage: int, symbol: Str = undefined, params = {}) {
         if (symbol === undefined) {
             throw new ArgumentsRequired (this.id + ' setLeverage() requires a symbol argument');
         }

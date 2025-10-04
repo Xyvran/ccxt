@@ -830,12 +830,12 @@ public partial class apex : Exchange
             limit = 200; // default is 200 when requested with `since`
         }
         ((IDictionary<string,object>)request)["limit"] = limit; // max 200, default 200
-        var requestparametersVariable = this.handleUntilOption("end", request, parameters);
+        var requestparametersVariable = this.handleUntilOption("end", request, parameters, 0.001);
         request = ((IList<object>)requestparametersVariable)[0];
         parameters = ((IList<object>)requestparametersVariable)[1];
         if (isTrue(!isEqual(since, null)))
         {
-            ((IDictionary<string,object>)request)["start"] = since;
+            ((IDictionary<string,object>)request)["start"] = (Math.Floor(Double.Parse((divide(since, 1000)).ToString())));
         }
         object response = await this.publicGetV3Klines(this.extend(request, parameters));
         object data = this.safeDict(response, "data", new Dictionary<string, object>() {});
@@ -1637,7 +1637,7 @@ public partial class apex : Exchange
         }
         object response = await this.privatePostV3DeleteOpenOrders(this.extend(request, parameters));
         object data = this.safeDict(response, "data", new Dictionary<string, object>() {});
-        return data;
+        return new List<object> {this.parseOrder(data, market)};
     }
 
     /**
@@ -1667,7 +1667,7 @@ public partial class apex : Exchange
             response = await this.privatePostV3DeleteOrder(this.extend(request, parameters));
         }
         object data = this.safeDict(response, "data", new Dictionary<string, object>() {});
-        return data;
+        return this.safeOrder(data);
     }
 
     /**

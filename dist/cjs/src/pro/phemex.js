@@ -1,14 +1,16 @@
 'use strict';
 
+Object.defineProperty(exports, '__esModule', { value: true });
+
 var phemex$1 = require('../phemex.js');
 var Precise = require('../base/Precise.js');
 var Cache = require('../base/ws/Cache.js');
 var sha256 = require('../static_dependencies/noble-hashes/sha256.js');
 var errors = require('../base/errors.js');
 
+// ----------------------------------------------------------------------------
 //  ---------------------------------------------------------------------------
-//  ---------------------------------------------------------------------------
-class phemex extends phemex$1 {
+class phemex extends phemex$1["default"] {
     describe() {
         return this.deepExtend(super.describe(), {
             'has': {
@@ -111,7 +113,7 @@ class phemex extends phemex$1 {
             average = this.parseNumber(Precise["default"].stringDiv(Precise["default"].stringAdd(lastString, openString), '2'));
             percentage = this.parseNumber(Precise["default"].stringMul(Precise["default"].stringSub(Precise["default"].stringDiv(lastString, openString), '1'), '100'));
         }
-        const result = {
+        return this.safeTicker({
             'symbol': symbol,
             'timestamp': timestamp,
             'datetime': this.iso8601(timestamp),
@@ -134,8 +136,7 @@ class phemex extends phemex$1 {
             'markPrice': this.parseNumber(this.fromEp(this.safeString(ticker, 'markPrice'), market)),
             'indexPrice': this.parseNumber(this.fromEp(this.safeString(ticker, 'indexPrice'), market)),
             'info': ticker,
-        };
-        return result;
+        });
     }
     parsePerpetualTicker(ticker, market = undefined) {
         //
@@ -171,7 +172,7 @@ class phemex extends phemex$1 {
             average = this.parseNumber(Precise["default"].stringDiv(Precise["default"].stringAdd(lastString, openString), '2'));
             percentage = this.parseNumber(Precise["default"].stringMul(Precise["default"].stringSub(Precise["default"].stringDiv(lastString, openString), '1'), '100'));
         }
-        const result = {
+        return this.safeTicker({
             'symbol': symbol,
             'timestamp': undefined,
             'datetime': undefined,
@@ -192,8 +193,7 @@ class phemex extends phemex$1 {
             'baseVolume': baseVolume,
             'quoteVolume': quoteVolume,
             'info': ticker,
-        };
-        return result;
+        });
     }
     handleTicker(client, message) {
         //
@@ -1565,4 +1565,4 @@ class phemex extends phemex$1 {
     }
 }
 
-module.exports = phemex;
+exports["default"] = phemex;
