@@ -75,7 +75,7 @@ class Exchange extends \ccxt\Exchange {
     }
 
     public function set_request_browser($connector) {
-        $this->browser = (new React\Http\Browser($connector, Loop::get()))->withRejectErrorResponse(false)->withOptions(['maximumSize' => 33554432]);
+        $this->browser = (new React\Http\Browser($connector, Loop::get()))->withRejectErrorResponse(false)->withResponseBuffer(33554432);
     }
 
     public function create_connector ($connector_options = array()){
